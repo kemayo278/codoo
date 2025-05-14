@@ -10,11 +10,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/Shared/ui/alert-dialog"
+import React from "react"
+import { ButtonSpinner } from "@/components/Shared/ui/ButtonSpinner"
 
 interface ConfirmationDialogProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: () => void | Promise<void>
+  onConfirm: (e:React.FormEvent) => void | Promise<void>
   title?: string
   description?: string
   cancelText?: string
@@ -57,7 +59,7 @@ export function ConfirmationDialog({
             className={getConfirmButtonClasses()}
             disabled={isLoading}
           >
-            {confirmText}
+            {isLoading ? <ButtonSpinner/> : confirmText}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

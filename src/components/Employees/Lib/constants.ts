@@ -1,4 +1,4 @@
-export const roles = ["Admin", "Seller", "Manager"]
+export const roles = ["admin", "seller", "manager"]
 export const shops = ["Douala Shop", "Buea Shop"]
 
 export const employees = [

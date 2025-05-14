@@ -296,6 +296,7 @@ const AccountSetup = () => {
 
     if (!user?.id) {
       console.error('No user ID found');
+      toast({ title: "Error", description: "User ID not found", variant: "destructive"});
       return;
     }
 
@@ -336,7 +337,7 @@ const AccountSetup = () => {
           formData.taxationDocuments.arrayBuffer().then(async (buffer) => {
             try {
               if (formData.taxationDocuments instanceof File) {
-                const uploadResponse = await uploadFile(formData.taxationDocuments, "shop");
+                const uploadResponse = await uploadFile(formData.taxationDocuments, "business");
                 fileResults.taxDocsPath = uploadResponse.name ?? null;
               }
             } catch (error) {
@@ -412,14 +413,17 @@ const AccountSetup = () => {
             email: formData.email,
             phone: formData.phoneNumber
           },
-          manager: isManager ? formData.managerName : null,
+          manager: isManager ? {
+            name : formData.managerName,
+            email : formData.managerEmail
+          } : null,
           isManager: isManager
         },
         userId: user.id
       });
 
       if (result.success) {
-        router.push('/dashboard');
+        router.push('/select-shop');
       }
     } catch (error) {
       console.error('Setup failed:', error);
@@ -866,7 +870,7 @@ const AccountSetup = () => {
                     <Switch
                       id="isManager"
                       checked={isManager}
-                      onCheckedChange={setIsManager}
+                      // onCheckedChange={setIsManager}
                     />
                     <Label htmlFor="isManager">I am the manager of this shop</Label>
                   </div>

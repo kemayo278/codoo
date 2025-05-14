@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from "@/components/Shared/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/Shared/ui/select"
@@ -41,6 +41,8 @@ import {
 } from "@/components/ui/separator"
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "@/components/ui/command"
 import AxiosClient from '@/lib/axiosClient'
+import TableEmptyRow from '@/components/Shared/ui/TableEmptyRow'
+import LoadingIndicator from '@/components/Shared/ui/LoadingIndicator'
 
 interface ProductListProps {
   onAddProduct: () => void;
@@ -136,6 +138,7 @@ export function ProductList({ onAddProduct }: ProductListProps) {
   const router = useRouter();
   const [products, setProducts] = useState<ProductShopAttributes[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingDelete, setIsLoadingDelete] = useState(false);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -216,9 +219,10 @@ export function ProductList({ onAddProduct }: ProductListProps) {
     setProductToDelete(null);
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async (event : React.FormEvent) => {
+    event.preventDefault();
     if (!productToDelete?.id) return;
-  
+    setIsLoadingDelete(true)
     try {
       const { data } = await AxiosClient.delete(`/product-shops/${productToDelete.id}`);
       const { success } = data;
@@ -238,6 +242,7 @@ export function ProductList({ onAddProduct }: ProductListProps) {
       });
     } finally {
       setProductToDelete(null);
+      setIsLoadingDelete(false);
     }
   };  
 
@@ -309,11 +314,7 @@ export function ProductList({ onAddProduct }: ProductListProps) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mb-4"></div>
-        <p>Loading products...</p>
-        <p className="text-sm text-gray-500">This may take a few moments</p>
-      </div>
+      <LoadingIndicator title="Loading products..." subtitle="This may take a few moments" />
     );
   }
 
@@ -444,16 +445,11 @@ export function ProductList({ onAddProduct }: ProductListProps) {
                 </TableHeader>
                 <TableBody>
                   {filteredProducts.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8">
-                        <div className="flex flex-col items-center justify-center text-gray-500">
-                          <p className="mb-2">No products found</p>
-                          <p className="text-sm text-gray-400">
-                            Try adjusting your search or filter criteria
-                          </p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                    <TableEmptyRow
+                      title="No products found" 
+                      colSpan={6}
+                      subtitle="Try adjusting your search or filter criteria" 
+                    />                    
                   ) : (
                     paginatedProducts.map((productshop) => (
                       <TableRow key={productshop.id}>
@@ -556,6 +552,7 @@ export function ProductList({ onAddProduct }: ProductListProps) {
 
           <ConfirmationDialog
             isOpen={!!productToDelete}
+            isLoading={isLoadingDelete}
             onClose={handleCancelDelete}
             onConfirm={handleConfirmDelete}
             title="Delete Product"

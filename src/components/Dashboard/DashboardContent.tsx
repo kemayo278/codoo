@@ -7,7 +7,7 @@ import { DollarSign, ShoppingCart, Package, CreditCard, ChevronDown, TrendingUp 
 import { useAuthLayout } from '@/components/Shared/Layout/AuthLayout'
 import { safeIpcInvoke } from '@/lib/ipc'
 import { LoadingSpinner } from '@/components/Shared/ui/LoadingSpinner'
-import { ErrorAlert } from '@/components/Shared/ui/ErrorAlert'
+// import { ErrorAlert } from '@/components/Shared/ui/ErrorAlert'
 import type { FinanceDashboardData, SalesDashboardData, CustomerDashboardData } from '@/types/dashboard'
 import type { RawInventoryDashboardData } from '@/types/inventory'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/Shared/ui/select"

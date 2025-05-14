@@ -26,6 +26,10 @@ import {toast} from '@/hooks/use-toast';
 import { useAuthLayout } from "@/components/Shared/Layout/AuthLayout";
 import { EmptyState } from '../Empty/EmptyState'
 import { ConfirmationDialog } from '@/components/Shared/ui/Modal/confirmation-dialog'
+import { LoadingSpinner } from "@/components/Shared/ui/LoadingSpinner"
+import AxiosClient from "@/lib/axiosClient"
+import ErrorAlert from "@/components/Shared/ui/ErrorAlert"
+import LoadingIndicator from "@/components/Shared/ui/LoadingIndicator"
 
 interface EmployeeListProps {
   onEmployeeClick: (employee: Employee) => void;
@@ -38,97 +42,55 @@ const roles: UserAttributes['role'][] = ['shop_owner', 'manager', 'seller', 'adm
 export function EmployeeList({ onEmployeeClick, onAddEmployee, onEditEmployee }: EmployeeListProps) {
   const { business, user, availableShops } = useAuthLayout();
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [loadingDelete, setLoadingDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
 
   const fetchEmployees = async () => {
-    if (!business?.id) {
-      setError('No business context found');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      
-      console.log('Fetching employees for business:', business.id);
-      
-      // Get shop IDs based on user role
-      const shopIds = (user?.role === 'admin' || user?.role === 'shop_owner')
-        ? business?.shops?.map(shop => shop.id) || []
-        : [availableShops?.[0]?.id].filter(Boolean) as string[];
-
-      const response = await safeIpcInvoke<{ 
-        success: boolean; 
-        employees: Employee[]; 
-        message?: string 
-      }>('entities:employee:get-all', {
-        businessId: business.id,
-        shopIds
-      }, { success: false, employees: [] });
-
-      if (response?.success && response.employees) {
-        // Format employee data before setting state
-        const formattedEmployees = response.employees.map((employee: Employee) => ({
-          ...employee,
-          createdAt: new Date(employee.createdAt),
-          updatedAt: new Date(employee.updatedAt),
-          // Add any other date fields that need formatting
-        }));
-        setEmployees(formattedEmployees);
-      } else {
-        setError(response?.message || 'Failed to load employees');
-        toast({
-          title: "Error",
-          description: response?.message || "Failed to load employees",
-          variant: "destructive",
-        });
+    setError(null)
+    setLoading(true)
+    let url = "/employees";
+    AxiosClient.get(url).then((response) => {
+      const { success, data } = response.data
+      if (success && data?.employees) {
+        setEmployees(data.employees)
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setError(errorMessage);
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    }).catch((err: any) => {
+      let message = 'Error loading employees';
+      if(err && err.message === 'Network Error') {
+        message = 'Network Error, please check your connection';
+      }else{
+        message = 'Error loading employees';
+      }
+      setError(message);
+    }).finally(() => {
+      setLoading(false)
+    })
   };
 
   const handleDeleteEmployee = async () => {
     try {
       if (!employeeToDelete) return;
-
-      const response = await safeIpcInvoke<{ success: boolean; message?: string }>(
-        'entities:employee:delete', 
-        { id: employeeToDelete.id },
-        { success: false }
-      );
-
-      if (response?.success) {
-        setEmployees(prevEmployees => 
-          prevEmployees.filter(emp => emp.id !== employeeToDelete.id)
-        );
-        toast({
-          title: "Success",
-          description: "Employee deleted successfully"
-        });
-      } else {
-        throw new Error(response?.message || 'Failed to delete employee');
+  
+      const response = await AxiosClient.delete(`/employees/${employeeToDelete.id}`);
+      const { success } = response.data;
+  
+      if (success) {
+        setEmployees(prev => prev.filter(emp => emp.id !== employeeToDelete.id));
+        toast({ title: "Success", description: "Employee deleted successfully" });
       }
-    } catch (error) {
-      console.error('Error deleting employee:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete employee",
-        variant: "destructive"
-      });
+    } catch (err: any) {
+      const response = err?.response;
+      let message = "Failed to delete Employee";
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }else{
+        message = response?.data?.error || "Failed to delete Employee";
+      }      
+      toast({ title: "Error", description: message, variant: "destructive"});      
     } finally {
       setEmployeeToDelete(null);
     }
@@ -222,26 +184,20 @@ export function EmployeeList({ onEmployeeClick, onAddEmployee, onEditEmployee }:
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
-      </div>
+      <LoadingIndicator title="Loading employees..." subtitle="This may take a few moments" />  
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-red-500">
-          {error}
-          <Button 
-            onClick={fetchEmployees} 
-            variant="outline" 
-            className="ml-2"
-          >
-            Retry
-          </Button>
-        </div>
-      </div>
+      <ErrorAlert
+        title="Error"
+        message={error}
+        onRetry={() => {
+          setError(null);
+          fetchEmployees();
+        }}
+      />      
     );
   }
 

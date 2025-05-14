@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/Shared/ui/button"
 import { Input } from "@/components/Shared/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/Shared/ui/select"
@@ -12,6 +12,8 @@ import { safeIpcInvoke } from '@/lib/ipc';
 import { toast } from '@/hooks/use-toast';
 import { useAuthLayout } from "@/components/Shared/Layout/AuthLayout";
 import { Checkbox } from "@/components/Shared/ui/checkbox"
+import AxiosClient from "@/lib/axiosClient"
+import { ButtonSpinner } from "@/components/Shared/ui/ButtonSpinner"
 
 interface AddEditEmployeeProps {
   onBack: () => void;
@@ -27,19 +29,20 @@ interface EmployeeResponse {
 }
 
 export function AddEditEmployee({ onBack, onSave, employee, isEdit }: AddEditEmployeeProps) {
-  const { business, user, availableShops } = useAuthLayout();
-  
-  // Log for debugging
-  console.log('Business in AddEmployee:', business);
-  console.log('Shops available:', business?.shops);
+  const { business, user, availableShops, currentShop } = useAuthLayout();
 
-  if (!['admin', 'shop_owner', 'manager'].includes(user?.role || '')) {
-    return (
-      <div className="p-4 text-center text-red-500">
-        Unauthorized access
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!['admin', 'shop_owner', 'manager'].includes(user?.role || '')) {
+      toast({
+        title: "Unauthorized",
+        description: "You do not have permission to access this page.",
+        variant: "destructive",
+      });
+      onBack();
+    }
+  }, [user, onBack]);
+
+  const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: employee?.firstName || '',
@@ -49,9 +52,7 @@ export function AddEditEmployee({ onBack, onSave, employee, isEdit }: AddEditEmp
     role: employee?.role || 'seller',
     employmentStatus: employee?.employmentStatus || 'full-time',
     salary: employee?.salary || 0,
-    shopId: employee?.shopId || (user?.role !== 'admin' && user?.role !== 'shop_owner') 
-      ? availableShops?.[0]?.id || ''
-      : '',
+    shopId: currentShop?.id || '',
     username: employee?.user?.username || '',
     password_hash: '',
     businessId: business?.id || '',
@@ -66,94 +67,119 @@ export function AddEditEmployee({ onBack, onSave, employee, isEdit }: AddEditEmp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate password update if shown
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.role || !formData.salary) {
+      toast({title: "Error", description: "All fields are required", variant: "destructive"});
+      return;
+    }
+
     if (showPasswordUpdate) {
       if (passwordUpdate.newPassword !== passwordUpdate.confirmPassword) {
-        toast({
-          title: "Error",
-          description: "Passwords do not match",
-          variant: "destructive"
-        });
+        toast({title: "Error", description: "Passwords do not match", variant: "destructive"});
         return;
       }
     }
 
     try {
-      if (!business?.id) {
-        toast({
-          title: "Error",
-          description: "Business information is missing",
-          variant: "destructive",
-        });
+      if (!formData.businessId) {
+        toast({title: "Error", description: "Business information is missing", variant: "destructive"});
         return;
       }
 
       if (!formData.shopId) {
-        toast({
-          title: "Error",
-          description: "Please select a shop",
-          variant: "destructive",
-        });
+        toast({title: "Error", description: "Please select a shop", variant: "destructive"});
         return;
       }
 
+      setIsLoading(true);
+
       if (isEdit && employee) {
         const updates = {
-          ...formData,
+          _method : "PUT",
+          // username: formData.username,
+          email: formData.email,
+          password : formData.password_hash,
           role: formData.role,
+          employment_status : formData.employmentStatus,
+          salary: formData.salary,
+          phone: formData.phone,
+          first_name : formData.firstName,
+          last_name : formData.lastName,    
           ...(showPasswordUpdate && {
-            password_hash: passwordUpdate.newPassword
+            password : passwordUpdate.newPassword
           })
         };
 
-        const response = await safeIpcInvoke<EmployeeResponse>('entities:employee:update', {
-          id: employee.id,
-          updates: updates
-        }, { success: false, employee: undefined, message: '' });
+        const { data, success } = (await AxiosClient.post(`/employees/${employee.id}`, updates)).data;
 
-        if (response?.success && response.employee) {
-          toast({
-            title: "Success",
-            description: "Employee updated successfully",
-          });
-          onSave(response.employee);
-        } else {
-          toast({
-            title: "Error",
-            description: "Failed to update employee",
-            variant: "destructive",
-          });
+        if (success && data?.employee) {
+          toast({title: "Success", description: "Employee updated successfully"});
+          onSave(data?.employee);
         }
       } else {
-        const response = await safeIpcInvoke('entities:employee:create', {
-          employeeData: {
-            ...formData,
-            shopId: formData.shopId
-          }
-        }, { success: false } as EmployeeResponse);
+        if (!formData.username || !formData.password_hash) {
+          toast({title: "Error", description: "Username and password are required", variant: "destructive"});
+          return;
+        }     
+        if (formData.username.length < 3) {
+          toast({title: "Error", description: "Username must be at least 3 characters long", variant: "destructive"});
+          return;
+        }
+        if (formData.password_hash.length < 6) {
+          toast({title: "Error", description: "Password must be at least 6 characters long", variant: "destructive"});
+          return;
+        }
 
-        if (response?.success && response.employee) {
-          toast({
-            title: "Success",
-            description: "Employee created successfully",
-          });
-          onSave(response.employee);
-        } else {
-          toast({
-            title: "Error",
-            description: "Failed to create employee",
-            variant: "destructive",
-          });
+        const userPayload = {
+          username: formData.username,
+          email: formData.email,
+          password : formData.password_hash,
+          role: formData.role,
+          shop_id : currentShop?.id,
+          business_id : business?.id,
+          is_staff : true,
+        }
+
+        const { data, success } = (await AxiosClient.post("/auth/register", userPayload)).data;
+        
+        if(!success) {
+          toast({title: "Error", description: "Failed to create user account", variant: "destructive"});
+        }
+
+        const employeePayload = {
+          user_id : data.user.id,
+          shop_id : formData.shopId,
+          role: formData.role,
+          employment_status : formData.employmentStatus,
+          salary: formData.salary,
+          phone: formData.phone,
+          first_name : formData.firstName,
+          last_name : formData.lastName,
+          email: formData.email,
+        }
+
+        const { success: successEmployee, data: dataEmployee } = (await AxiosClient.post("/employees", employeePayload)).data;
+  
+        if (!successEmployee) {
+          toast({title: "Error", description: "Failed to create employee", variant: "destructive"});
+          throw new Error("Failed to create employee");
+        }
+
+        if (successEmployee) {
+          onSave(dataEmployee.employee);
+          toast({ title: "Success", description: "Employee created successfully", });
         }
       }
-    } catch (error) {
-      console.error('Error saving employee:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save employee",
-        variant: "destructive",
-      });
+    } catch (err: any) {
+      const response = err?.response;
+      let message = isEdit ? "Failed to update employee" : "Failed to create employee";
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }else{
+        message = response?.data?.error || isEdit ? "Failed to update employee" : "Failed to create employee";
+      }      
+      toast({ title: "Error", description: message, variant: "destructive"});   
+    }finally {
+      setIsLoading(false);
     }
   };
 
@@ -166,7 +192,9 @@ export function AddEditEmployee({ onBack, onSave, employee, isEdit }: AddEditEmp
         <h1 className="text-2xl font-semibold text-gray-800">{isEdit ? 'Edit Employee' : 'Add Employee'}</h1>
         <div className="flex space-x-2">
           <Button variant="outline" className="mr-2" onClick={onBack}>Cancel</Button>
-          <Button className="bg-[#2D70FD]" onClick={handleSubmit}>Save</Button>
+          <Button className="bg-[#2D70FD]" disabled={isLoading} onClick={handleSubmit}>
+            {isLoading ? ( <ButtonSpinner/> ) : ( isEdit ? "Save Changes" : "Create" )}
+          </Button>
         </div>
       </div>
       <Card>
@@ -263,35 +291,6 @@ export function AddEditEmployee({ onBack, onSave, employee, isEdit }: AddEditEmp
                   onChange={(e) => setFormData({ ...formData, salary: parseFloat(e.target.value) || 0 })}
                 />
               </label>
-
-              <div className="space-y-4">
-                <h3 className="font-medium">Assign to Shops</h3>
-                <div className="space-y-2">
-                  {business?.shops?.map((shop: any) => (
-                    <div key={shop.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={shop.id}
-                        checked={formData.shopId === shop.id}
-                        onCheckedChange={(checked) => {
-                          setFormData(prev => ({
-                            ...prev,
-                            shopId: checked ? shop.id : ''
-                          }));
-                        }}
-                      />
-                      <label
-                        htmlFor={shop.id}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {shop.name || 'Unnamed Shop'}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-                {formData.shopId === '' && (
-                  <p className="text-sm text-red-500">Please select a shop</p>
-                )}
-              </div>
             </div>
 
             {/* Account Credentials - Only show for new employees */}
@@ -359,7 +358,7 @@ export function AddEditEmployee({ onBack, onSave, employee, isEdit }: AddEditEmp
                   </>
                 )}
               </div>
-            )}
+            )}  
           </div>
         </CardContent>
       </Card>

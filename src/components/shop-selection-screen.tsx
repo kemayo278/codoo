@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Check, Plus, Search, Store } from "lucide-react"
@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { useAuthLayout } from "./Shared/Layout/AuthLayout"
+import { ButtonSpinner } from "./Shared/ui/ButtonSpinner"
+import { LoadingSpinner } from "./Shared/ui/LoadingSpinner"
 
 interface Shop {
     id: string;
@@ -16,7 +18,7 @@ interface Shop {
     type: string;
     status: string;
     contactInfo: any;
-    shopType: string;
+    shopType?: string;
     shopLogo?: string;
     manager: string;
     managerId: string;
@@ -39,21 +41,52 @@ export function ShopSelectionScreen() {
 
   const shops = availableShops || business?.shops || [];
 
+  const [selectedShop, setSelectedShop] = useState<Shop | null>(currentShop || null)
+
+  const [isLoading, setIsLoading] = useState(false)
+
+  const [isLoadingPage, setIsLoadingPage] = useState(true)
+
   // Filter shops based on search
   const filteredShops = shops.filter((shop) => shop.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
   const handleShopSelect = (shop: Shop) => {
-    setCurrentShopModel(shop)
+    setSelectedShop(shop)
   }
 
   const handleContinue = () => {
-    router.push(`/dashboard`)
+    if (selectedShop) {
+      setIsLoading(true)
+      setTimeout(() => {
+        setCurrentShopModel(selectedShop)
+        setIsLoading(false)
+        router.push(`/dashboard`)
+      }, 1000)
+    } else {
+      console.error("No shop selected")
+    }
   }
 
   const handleAddShop = () => {
     // In a real app, this would navigate to a shop creation page or open a modal
     console.log("Add new shop")
     // router.push("/create-shop")
+  }
+
+  useEffect(() => {
+    if (!user) {
+      checkAuth()
+    }else{
+      setIsLoadingPage(false)
+    }
+  }, [user, checkAuth])
+
+  if (isLoadingPage) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <LoadingSpinner />
+      </div>
+    )
   }
 
   return (
@@ -100,7 +133,7 @@ export function ShopSelectionScreen() {
             <Card
               key={shop.id}
               className={`cursor-pointer transition-colors ${
-                currentShop?.id === shop.id ? "border-2 border-blue-500" : "hover:border-blue-200"
+                selectedShop?.id === shop.id ? "border-2 border-blue-500" : "hover:border-blue-200"
               }`}
               onClick={() => handleShopSelect(shop)}
             >
@@ -114,7 +147,7 @@ export function ShopSelectionScreen() {
                       height={40}
                       className="rounded-full"
                     />
-                    {currentShop?.id === shop.id && (
+                    {selectedShop?.id === shop.id && (
                       <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-white">
                         <Check className="h-3 w-3" />
                       </div>
@@ -135,10 +168,10 @@ export function ShopSelectionScreen() {
       <div className="flex justify-center">
         <Button
           className="w-full max-w-md bg-blue-600 hover:bg-blue-700 text-white"
-          disabled={!currentShop}
+          disabled={!selectedShop || isLoading}
           onClick={handleContinue}
         >
-          Continue with Selected Shop
+          {isLoading ? ( <ButtonSpinner/> ) : ( "Continue with Selected Shop" )} 
         </Button>
       </div>
     </div>

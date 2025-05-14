@@ -40,6 +40,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/Shared/ui/button"
+import LoadingIndicator from '@/components/Shared/ui/LoadingIndicator'
 
 const navigationItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -148,6 +149,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   })
   const [activeItem, setActiveItem] = useState<string>(pathname)
   const [sidebarState, setSidebarState] = useState<boolean>(true)
+  const [isLoading, setIsLoading] = useState(true);
 
   // Find which dropdown contains the current path
   const findParentDropdown = useCallback((path: string) => {
@@ -207,6 +209,25 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     
     // Use client-side navigation
     router.push(href);
+  }
+
+  useEffect(() => {
+    const shouldInitialize = business?.id && currentShop?.id;
+
+    if (!shouldInitialize) {
+      setIsLoading(false);
+      // logout();
+      // router.push('/auth/login');
+      return;
+    }else{
+      setIsLoading(false);
+    }
+  }, [business?.id, currentShop?.id]);
+
+  if (isLoading) {
+    return (
+      <LoadingIndicator title="" />
+    );
   }
 
   return (

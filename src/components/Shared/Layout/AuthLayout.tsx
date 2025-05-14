@@ -216,7 +216,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         } else {
           router.push('/select-shop');
         }
-      }, 100);
+      }, 500);
   
       return {
         success: true,
@@ -248,6 +248,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
   
   const handleLogout = () => {
     console.log('Logging out, clearing all state and storage');
+    // Redirect to login
+    router.push('/auth/login');
+
     // Clear all state
     setUser(null);
     setBusiness(null);
@@ -468,7 +471,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         description: "Account setup completed successfully",
       });
   
-      router.push('/dashboard');
+      router.push('/select-shop');
       return { success: true };
   
     } catch (error) {
@@ -506,37 +509,45 @@ export function AuthLayout({ children }: AuthLayoutProps) {
 
   const checkAuth = async () => {
     try {
-      // setIsLoading(true);
-  
-      const isAuthenticated = localStorage.getItem('isAuthenticated');
+      const isAuthenticated = localStorage.getItem('isAuthenticated') === 'false' ? false : true;
       const storedToken = localStorage.getItem('access_token');
+      const storedUser = localStorage.getItem('user');
+      const storedBusiness = localStorage.getItem('business');
+      const storedShops = localStorage.getItem('availableShops');
       const storedShop = localStorage.getItem('currentShop');
       const currentShopId = localStorage.getItem('currentShopId');
-  
-      if (!storedToken || isAuthenticated !== 'true') {
+
+      if (storedUser) setUser(JSON.parse(storedUser));
+      if (storedBusiness) setBusiness(JSON.parse(storedBusiness));
+      if (storedShops) setAvailableShops(JSON.parse(storedShops));
+      if (storedShop) setCurrentLyShop(JSON.parse(storedShop));
+      if (currentShopId) setCurrentShopId(currentShopId);
+      if (storedToken) setAccessToken(storedToken);
+      setIsAuthenticated(isAuthenticated);
+
+      // 3. Si pas authentifié, logout
+      if (!storedToken || !isAuthenticated) {
         console.log('No token or not authenticated');
         handleLogout();
         return;
       }
-  
+
+      // 4. Vérification de session côté serveur
       const response = await AxiosClient.post('/auth/check');
       const { success, data, message } = response.data;
-  
+
       if (!success || !data?.user) {
         throw new Error(message || 'Invalid session');
       }
-  
+
       const { user, business, shops } = data;
-      console.log('Auth check response:', { success, user, business, shops });
       const parsedCurrentShop = storedShop ? JSON.parse(storedShop) : null;
-  
-      // Mettre à jour localStorage
+
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('business', JSON.stringify(business));
       localStorage.setItem('availableShops', JSON.stringify(shops));
       localStorage.setItem('isAuthenticated', 'true');
-  
-      // Mettre à jour l'état
+
       setUser(user);
       setBusiness(business);
       setAvailableShops(shops);
@@ -547,10 +558,14 @@ export function AuthLayout({ children }: AuthLayoutProps) {
     } catch (error: any) {
       console.error('Auth check failed:', error);
       if (error.response?.status === 401) {
-        toast({ title: 'Error', description: 'Session expired, please log in again.', variant: 'destructive'});
+        toast({
+          title: 'Erreur',
+          description: 'Session expirée, veuillez vous reconnecter.',
+          variant: 'destructive',
+        });
         handleLogout();
       } else {
-        console.error('Error checking authentication:', error);
+        console.error('Erreur lors de la vérification de la session :', error);
       }
     } finally {
       setIsLoading(false);

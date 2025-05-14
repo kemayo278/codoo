@@ -9,7 +9,7 @@ export interface Employee {
   createdAt: Date;
   updatedAt: Date;
   hireDate: Date;
-  status: 'active' | 'inactive' | 'terminated';
+  status: 'eanble' | 'disable' | 'terminated';
   description?: string;
   shopId?: string;
   country?: string;

@@ -256,7 +256,7 @@ export function AddProduct({ onBack, editMode = false, productToEdit, onEditComp
           purchase_price: Number(formData.purchasePrice),
           quantity: Number(formData.quantity),
           reorder_point: Number(formData.reorderPoint),
-          status: formData.status,
+          status: '',
           user_id: formData.userId,
         };
   
@@ -270,6 +270,8 @@ export function AddProduct({ onBack, editMode = false, productToEdit, onEditComp
           title: "Success",
           description: "Product created successfully"
         });
+
+        onBack();
       }
     } catch (error) {
       console.error("Error during product submission:", error);

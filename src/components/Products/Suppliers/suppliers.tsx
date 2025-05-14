@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/Shared/ui/button"
 import { Input } from "@/components/Shared/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/Shared/ui/table"
@@ -17,6 +17,9 @@ import countryList from 'react-select-country-list'
 import { Country, State } from 'country-state-city'
 import { EmptyState } from "./EmptyState"
 import { ConfirmationDialog } from '@/components/Shared/ui/Modal/confirmation-dialog'
+import AxiosClient from "@/lib/axiosClient"
+import { ButtonSpinner } from "@/components/Shared/ui/ButtonSpinner"
+import TableEmptyRow from "@/components/Shared/ui/TableEmptyRow"
 
 
 
@@ -57,24 +60,12 @@ interface NewSupplier {
   country: string;
 }
 
-
-
-interface SupplierResponse {
-  success: boolean;
-  supplier?: Supplier;
-  message?: string;
-}
-
-interface SuppliersListResponse {
-  success: boolean;
-  suppliers?: Supplier[];
-  message?: string;
-}
-
 const Suppliers = () => {
-  const { business, user } = useAuthLayout();
+  const { business, user, currentShop } = useAuthLayout();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingInput, setIsLoadingInput] = useState(false);
+  const [isLoadingDelete, setIsLoadingDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -97,46 +88,25 @@ const Suppliers = () => {
 
   useEffect(() => {
     const fetchSuppliers = async () => {
-      try {
-        if (!business) return;
-        
-        setIsLoading(true);
-        const shopIds = (user?.role === 'admin' || user?.role === 'shop_owner')
-          ? business?.shops?.map(shop => shop.id) || []
-          : [business?.shops?.[0]?.id].filter(Boolean) as string[];
-
-        const response = await safeIpcInvoke<SuppliersListResponse>('entities:supplier:get-all', {
-          shopIds
-        }, { success: false, suppliers: [] });
-
-        if (response?.success) {
-          const receivedSuppliers = response.suppliers || [];
-          const formattedSuppliers = receivedSuppliers.map(supplier => ({
+      setIsLoading(true);
+      setError(null);
+      AxiosClient.get("/suppliers").then((response) => {
+        const { success, data } = response.data
+        if (success && data?.suppliers) {
+          const receivedSuppliers = data?.suppliers || [];
+          const formattedSuppliers = receivedSuppliers.map((supplier: { createdAt: string | number | Date; updatedAt: string | number | Date }) => ({
             ...supplier,
             createdAt: new Date(supplier.createdAt),
             updatedAt: new Date(supplier.updatedAt),
-            inventoryItems: supplier.inventoryItems?.map(item => ({
-              ...item,
-              quantity_supplied: Number(item.quantity_supplied) || 0,
-              cost_price: Number(item.cost_price) || 0,
-              selling_price: Number(item.selling_price) || 0,
-              quantity_left: Number(item.quantity_left) || 0
-            })) || []
           }));
-          
           setSuppliers(formattedSuppliers);
         }
-      } catch (error) {
-        console.error('Error fetching suppliers:', error);
-        setError(error instanceof Error ? error.message : 'Failed to load suppliers');
-        toast({
-          title: "Error",
-          description: "Failed to load suppliers",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
+      }).catch((err) => {
+        console.error("Error fetching suppliers:", err);
+        setError("Erreur inattendue lors du chargement")
+      }).finally(() => {
+        setIsLoading(false)
+      })
     };
 
     fetchSuppliers();
@@ -182,45 +152,39 @@ const Suppliers = () => {
     e.preventDefault();
     try {
       console.log('New Supplier Data:', newSupplier);
+  
+      const payload = {
+        ...newSupplier,
+        shop_id : currentShop?.id,
+        business_id : business?.id
+      };
 
-      const response = await safeIpcInvoke<SupplierResponse>(
-        isEditing ? 'entities:supplier:update' : 'entities:supplier:create',
-        {
-          supplierData: {
-            ...newSupplier,
-            shopId: selectedShopId === 'all' 
-              ? business?.shops?.[0]?.id 
-              : selectedShopId,
-            businessId: business?.id
-          }
-        }
-      );
-
-      if (response?.success && response.supplier) {
-        // Format the supplier data before updating state
+      setIsLoadingInput(true);
+  
+      const response = isEditing ? await AxiosClient.put(`/suppliers/${editingId}`, payload) : await AxiosClient.post("/suppliers", payload);
+  
+      const { success, data, message } = response.data;
+  
+      if (success && data?.supplier) {
         const formattedSupplier = {
-          ...response.supplier,
-          createdAt: new Date(response.supplier.createdAt),
-          updatedAt: new Date(response.supplier.updatedAt),
-          // Format any other date fields
+          ...data.supplier,
+          createdAt: new Date(data.supplier.createdAt),
+          updatedAt: new Date(data.supplier.updatedAt),
         };
-
+  
         setSuppliers(prevSuppliers => {
           if (isEditing) {
-            return prevSuppliers.map(supplier => 
+            return prevSuppliers.map(supplier =>
               supplier.id === editingId ? formattedSupplier : supplier
             );
           }
-          return [...prevSuppliers, formattedSupplier];
+          return [formattedSupplier,...prevSuppliers];
         });
-
+  
         handleDialogClose();
-        toast({
-          title: "Success",
-          description: `Supplier ${isEditing ? 'updated' : 'added'} successfully`,
-        });
+        toast({ title: "Success", description: `Supplier ${isEditing ? 'updated' : 'added'} successfully`});
       } else {
-        throw new Error(response?.message || `Failed to ${isEditing ? 'update' : 'add'} supplier`);
+        throw new Error(message || `Failed to ${isEditing ? 'update' : 'add'} supplier`);
       }
     } catch (error) {
       console.error('Error adding/updating supplier:', error);
@@ -229,6 +193,8 @@ const Suppliers = () => {
         description: error instanceof Error ? error.message : "Failed to add/update supplier",
         variant: "destructive",
       });
+    } finally {
+      setIsLoadingInput(false);
     }
   };
 
@@ -259,25 +225,21 @@ const Suppliers = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDeleteSupplier = async () => {
+  const handleDeleteSupplier = async (e:React.FormEvent) => {
+    e.preventDefault();
     try {
       if (!supplierToDelete) return;
 
-      const response = await safeIpcInvoke<SupplierResponse>(
-        'entities:supplier:delete', 
-        { id: supplierToDelete.id }
-      );
-
-      if (response?.success) {
-        setSuppliers(prevSuppliers => 
-          prevSuppliers.filter(supplier => supplier.id !== supplierToDelete.id)
-        );
-        toast({
-          title: "Success",
-          description: "Supplier deleted successfully",
-        });
+      setIsLoadingDelete(true);
+  
+      const response = await AxiosClient.delete(`/suppliers/${supplierToDelete.id}`);
+      const { success, message } = response.data;
+  
+      if (success) {
+        setSuppliers(prevSuppliers => prevSuppliers.filter(supplier => supplier.id !== supplierToDelete.id) );
+        toast({ title: "Success", description: "Supplier deleted successfully"});
       } else {
-        throw new Error(response?.message || 'Failed to delete supplier');
+        throw new Error(message || 'Failed to delete supplier');
       }
     } catch (error) {
       console.error('Error deleting supplier:', error);
@@ -288,9 +250,10 @@ const Suppliers = () => {
       });
     } finally {
       setSupplierToDelete(null);
+      setIsLoadingDelete(false);
     }
   };
-
+  
   // Add helper function to format location
   const formatLocation = (supplier: Supplier) => {
     const countryName = Country.getCountryByCode(supplier.country)?.name || supplier.country;
@@ -315,9 +278,11 @@ const Suppliers = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        Loading suppliers...
-      </div>
+      <div className="flex flex-col items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mb-4"></div>
+        <p>Loading suppliers...</p>
+        <p className="text-sm text-gray-500">This may take a few moments</p>
+      </div>      
     );
   }
 
@@ -380,23 +345,40 @@ const Suppliers = () => {
                   <Select
                     id="country"
                     options={countryList().getData()}
-                    value={countryList().getData().find(option => option.value === newSupplier.country)}
-                    onChange={(option) => setNewSupplier(prev => ({ ...prev, country: option?.value || '' }))}
+                    value={countryList().getData().find(option => option.label === newSupplier.country)}
+                    onChange={(option) =>
+                      setNewSupplier(prev => ({ ...prev, country: option?.label || '' }))
+                    }
                   />
                 </div>
+
                 <div className="grid gap-2">
                   <Label htmlFor="region">Region</Label>
                   {newSupplier.country ? (
                     <Select
                       id="region"
-                      options={State.getStatesOfCountry(newSupplier.country).map(state => ({
-                        value: state.isoCode,
-                        label: state.name
-                      }))}
-                      value={State.getStatesOfCountry(newSupplier.country)
-                        .map(state => ({ value: state.isoCode, label: state.name }))
-                        .find(option => option.value === newSupplier.region)}
-                      onChange={(option) => setNewSupplier(prev => ({ ...prev, region: option?.value || '' }))}
+                      options={(() => {
+                        const selectedCountryCode = countryList().getData().find(
+                          c => c.label === newSupplier.country
+                        )?.value;
+
+                        return State.getStatesOfCountry(selectedCountryCode || '').map(state => ({
+                          value: state.isoCode,
+                          label: state.name
+                        }));
+                      })()}
+                      value={(() => {
+                        const selectedCountryCode = countryList().getData().find(
+                          c => c.label === newSupplier.country
+                        )?.value;
+
+                        return State.getStatesOfCountry(selectedCountryCode || '')
+                          .map(state => ({ value: state.isoCode, label: state.name }))
+                          .find(option => option.label === newSupplier.region);
+                      })()}
+                      onChange={(option) =>
+                        setNewSupplier(prev => ({ ...prev, region: option?.label || '' }))
+                      }
                       isClearable
                     />
                   ) : (
@@ -407,6 +389,7 @@ const Suppliers = () => {
                     />
                   )}
                 </div>
+
                 <div className="grid gap-2">
                   <Label htmlFor="city">City</Label>
                   <Input
@@ -427,8 +410,8 @@ const Suppliers = () => {
                 </div>
               </div>
               <div className="flex justify-end">
-                <Button type="submit">
-                  {isEditing ? 'Update Supplier' : 'Add Supplier'}
+                <Button type="submit" disabled={isLoadingInput}>
+                  {isLoadingInput ? ( <ButtonSpinner/> ) : ( isEditing ? "Update Supplier" : "Add Supplier" )}                  
                 </Button>
               </div>
             </form>
@@ -470,44 +453,52 @@ const Suppliers = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentSuppliers.map((supplier: any) => {
-                const dataValues = supplier.dataValues || supplier;
-                return (
-                  <TableRow key={dataValues.id}>
-                    <TableCell>{dataValues.name}</TableCell>
-                    <TableCell>{dataValues.email}</TableCell>
-                    <TableCell>{dataValues.phone}</TableCell>
-                    <TableCell
-                      className="max-w-[200px] truncate"
-                      title={[dataValues.address, dataValues.city, dataValues.region, dataValues.country].filter(Boolean).join(', ')}
-                    >
-                      {formatLocation(dataValues)}
-                    </TableCell>
-                    <TableCell>{calculateTotalItems(dataValues)}</TableCell>
-                    <TableCell>{calculateSupplierSales(dataValues).toLocaleString()} FCFA</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditSupplier(dataValues)}
-                          aria-label="Edit"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setSupplierToDelete(dataValues)}
-                          aria-label="Delete"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {filteredSuppliers.length === 0 ? (
+                <TableEmptyRow
+                  title="No Suppliers found" 
+                  colSpan={6}
+                  subtitle="Try adjusting your search or filter criteria" 
+                />
+              ) : (              
+                currentSuppliers.map((supplier: any) => {
+                  const dataValues = supplier.dataValues || supplier;
+                  return (
+                    <TableRow key={dataValues.id}>
+                      <TableCell>{dataValues.name}</TableCell>
+                      <TableCell>{dataValues.email}</TableCell>
+                      <TableCell>{dataValues.phone}</TableCell>
+                      <TableCell
+                        className="max-w-[200px] truncate"
+                        title={[dataValues.address, dataValues.city, dataValues.region, dataValues.country].filter(Boolean).join(', ')}
+                      >
+                        {formatLocation(dataValues)}
+                      </TableCell>
+                      <TableCell>{calculateTotalItems(dataValues)}</TableCell>
+                      <TableCell>{calculateSupplierSales(dataValues).toLocaleString()} FCFA</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditSupplier(dataValues)}
+                            aria-label="Edit"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSupplierToDelete(dataValues)}
+                            aria-label="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -553,23 +544,40 @@ const Suppliers = () => {
                 <Select
                   id="country"
                   options={countryList().getData()}
-                  value={countryList().getData().find(option => option.value === newSupplier.country)}
-                  onChange={(option) => setNewSupplier(prev => ({ ...prev, country: option?.value || '' }))}
+                  value={countryList().getData().find(option => option.label === newSupplier.country)}
+                  onChange={(option) =>
+                    setNewSupplier(prev => ({ ...prev, country: option?.label || '' }))
+                  }
                 />
               </div>
+
               <div className="grid gap-2">
                 <Label htmlFor="region">Region</Label>
                 {newSupplier.country ? (
                   <Select
                     id="region"
-                    options={State.getStatesOfCountry(newSupplier.country).map(state => ({
-                      value: state.isoCode,
-                      label: state.name
-                    }))}
-                    value={State.getStatesOfCountry(newSupplier.country)
-                      .map(state => ({ value: state.isoCode, label: state.name }))
-                        .find(option => option.value === newSupplier.region)}
-                    onChange={(option) => setNewSupplier(prev => ({ ...prev, region: option?.value || '' }))}
+                    options={(() => {
+                      const selectedCountryCode = countryList().getData().find(
+                        c => c.label === newSupplier.country
+                      )?.value;
+
+                      return State.getStatesOfCountry(selectedCountryCode || '').map(state => ({
+                        value: state.isoCode,
+                        label: state.name
+                      }));
+                    })()}
+                    value={(() => {
+                      const selectedCountryCode = countryList().getData().find(
+                        c => c.label === newSupplier.country
+                      )?.value;
+
+                      return State.getStatesOfCountry(selectedCountryCode || '')
+                        .map(state => ({ value: state.isoCode, label: state.name }))
+                        .find(option => option.label === newSupplier.region);
+                    })()}
+                    onChange={(option) =>
+                      setNewSupplier(prev => ({ ...prev, region: option?.label || '' }))
+                    }
                     isClearable
                   />
                 ) : (
@@ -600,8 +608,8 @@ const Suppliers = () => {
               </div>
             </div>
             <div className="flex justify-end">
-              <Button type="submit">
-                {isEditing ? 'Update Supplier' : 'Add Supplier'}
+              <Button type="submit" disabled={isLoadingInput}>
+                {isLoadingInput ? ( <ButtonSpinner/> ) : ( isEditing ? "Update Supplier" : "Add Supplier" )}      
               </Button>
             </div>
           </form>
@@ -610,6 +618,7 @@ const Suppliers = () => {
 
       <ConfirmationDialog
         isOpen={!!supplierToDelete}
+        isLoading={isLoadingDelete}
         onClose={() => setSupplierToDelete(null)}
         onConfirm={handleDeleteSupplier}
         title="Delete Supplier"
