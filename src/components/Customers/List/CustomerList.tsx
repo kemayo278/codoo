@@ -84,14 +84,19 @@ export function CustomerList({ onCustomerClick, onAddCustomer }: CustomerListPro
 
   const fetchCustomers = async () => {
     setIsLoading(true);
-    AxiosClient.get("/customers").then((response) => {
+    let url = "/customers/shop/" + currentShop?.id;
+    AxiosClient.get(url).then((response) => {
       const { success, data } = response.data
       if (success && data?.customers) {
         setCustomers(data.customers)
       }
     }).catch((err) => {
       console.error("error loading customers :", err)
-      setError("error loading customers")
+      let message = 'Error loading customers';
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }
+      setError(message);
     }).finally(() => {
       setIsLoading(false);
     })
@@ -175,14 +180,15 @@ export function CustomerList({ onCustomerClick, onAddCustomer }: CustomerListPro
         );
         toast({ title: "Success",description: "Customer deleted successfully" });
       }
-    } catch (error: any) {
-      const response = error?.response;
-      const { success, message } = response?.data || {};
-      toast({
-        title: "Error",
-        description: error instanceof Error ? message : "Failed to delete customer",
-        variant: "destructive",
-      });
+    } catch (err: any) {
+      const response = err?.response;
+      let message = "Error processing your request";
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }else{
+        message = response?.data?.error || "Failed to delete customer";
+      }      
+      toast({ title: "Error", description: message, variant: "destructive"});      
     } finally {
       setCustomerToDelete(null);
       setIsDeleteModalOpen(false);
@@ -233,14 +239,15 @@ export function CustomerList({ onCustomerClick, onAddCustomer }: CustomerListPro
           handleEditModalClose();    
         }, 300);  
       }
-    } catch (error: any) {
-      const response = error?.response;
-      const { success, message } = response?.data || {};  
-      toast({
-        title: "Error",
-        description: error instanceof Error ? message : "Failed to update customer",
-        variant: "destructive",
-      });
+    } catch (err : any) {
+      const response = err?.response;
+      let message = "Error processing your request";
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }else{
+        message = response?.data?.error || "Failed to update customer";
+      }      
+      toast({ title: "Error", description: message, variant: "destructive"});      
     } finally {
       setIsLoadingEdit(false);
     }
@@ -318,7 +325,7 @@ export function CustomerList({ onCustomerClick, onAddCustomer }: CustomerListPro
                 </Button>
               </div>
 
-              {(user?.role === 'admin' || user?.role === 'shop_owner') && (
+              {/* {(user?.role === 'admin' || user?.role === 'shop_owner' || user?.role === "2") && (
                 <Select
                   value={selectedShopId}
                   onValueChange={setSelectedShopId}
@@ -335,7 +342,7 @@ export function CustomerList({ onCustomerClick, onAddCustomer }: CustomerListPro
                     ))}
                   </SelectContent>
                 </Select>
-              )}
+              )} */}
             </div>
 
             {/* Desktop Table View */}

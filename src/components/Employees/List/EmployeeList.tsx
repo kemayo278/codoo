@@ -40,7 +40,7 @@ interface EmployeeListProps {
 const roles: UserAttributes['role'][] = ['shop_owner', 'manager', 'seller', 'admin'];
 
 export function EmployeeList({ onEmployeeClick, onAddEmployee, onEditEmployee }: EmployeeListProps) {
-  const { business, user, availableShops } = useAuthLayout();
+  const { business, user, availableShops,currentShop } = useAuthLayout();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingDelete, setLoadingDelete] = useState(false);
@@ -52,7 +52,7 @@ export function EmployeeList({ onEmployeeClick, onAddEmployee, onEditEmployee }:
   const fetchEmployees = async () => {
     setError(null)
     setLoading(true)
-    let url = "/employees";
+    let url = "/employees/shop/" + currentShop?.id;
     AxiosClient.get(url).then((response) => {
       const { success, data } = response.data
       if (success && data?.employees) {
@@ -61,9 +61,7 @@ export function EmployeeList({ onEmployeeClick, onAddEmployee, onEditEmployee }:
     }).catch((err: any) => {
       let message = 'Error loading employees';
       if(err && err.message === 'Network Error') {
-        message = 'Network Error, please check your connection';
-      }else{
-        message = 'Error loading employees';
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
       }
       setError(message);
     }).finally(() => {
@@ -84,7 +82,7 @@ export function EmployeeList({ onEmployeeClick, onAddEmployee, onEditEmployee }:
       }
     } catch (err: any) {
       const response = err?.response;
-      let message = "Failed to delete Employee";
+      let message = "Error processing your request";
       if(err && err.message === 'Network Error') {
         message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
       }else{

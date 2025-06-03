@@ -176,15 +176,18 @@ export function ProductList({ onAddProduct }: ProductListProps) {
     setError(null);
     setIsLoading(true);
     try {
-      const response = await AxiosClient.get("/products/price-histories");
+      let url = "/products/price-history/shop/" + currentShop?.id;
+      const response = await AxiosClient.get(url);
       const { success, data } = response.data;
-
       if (success && data?.productShops) {
         setProducts(data.productShops);
       }
-    } catch (err) {
-      console.error("Unexpected error while loading products:", err);
-      setError("Unexpected error occurred while loading products.");
+    } catch (err: any) {
+      let message = 'Error loading products';
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }
+      setError(message);      
     }finally{
       setIsLoading(false)
     }
@@ -192,26 +195,24 @@ export function ProductList({ onAddProduct }: ProductListProps) {
 
   // Load categories
   const loadCategories = async () => {
-    setIsLoadingCategories(true);
-    try {
-      const response = await AxiosClient.get("/categories");
-      const { success, data } = response.data;
-
+    setError(null)
+    setIsLoadingCategories(true)
+    let url = "/categories/shop/" + currentShop?.id;
+    AxiosClient.get(url).then((response) => {
+      const { success, data } = response.data
       if (success && data?.categories) {
-        setCategories(data.categories);
+        setCategories(data.categories)
       }
-    } catch (err) {
-      console.error("Error while loading categories:", err);
-      setError("Failed to load categories.");
-    } finally {
-      setIsLoadingCategories(false);
-    }
-  };
-
-  // Handle shop selection changes
-  const handleShopSelection = async (shopId: string, checked: boolean | string) => {
-
-  };
+    }).catch((err: any) => {
+      let message = 'Error loading categories';
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }
+      setError(message);
+    }).finally(() => {
+      setIsLoadingCategories(false)
+    })
+  }
 
   const handleDeleteClick = (productShop: ProductShopAttributes) => {
     setProductToDelete(productShop);
@@ -254,7 +255,6 @@ export function ProductList({ onAddProduct }: ProductListProps) {
 
   const handleEditComplete = () => {
     setEditingProduct(null);
-    // initializeData();
   };
 
   const handleViewInventory = (productId: string | undefined) => {

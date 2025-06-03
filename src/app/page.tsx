@@ -22,15 +22,15 @@ export default function HomePage() {
       }
 
       // If authenticated but no business, go to account setup
-      if (storedUser && !storedBusiness) {
-        router.push('/account-setup')
-        return
-      }
+      // if (storedUser && !storedBusiness) {
+      //   router.push('/account-setup')
+      //   return
+      // }
 
       // If both user and business exist, go to dashboard
-      if (storedUser && storedBusiness) {
-        router.push('/dashboard')
-      }
+      // if (storedUser && storedBusiness) {
+      //   router.push('/dashboard')
+      // }
     }
 
     checkAuthAndSetup()

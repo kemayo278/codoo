@@ -64,13 +64,13 @@ interface ShopFormProps {
 }
 
 const shopTypes = [
-  // "Retail Store",
-  // "Restaurant",
-  // "Supermarket",
-  // "Pharmacy",
-  // "Electronics Store",
-  // "Fashion Boutique",
-  // "Other"
+  "Retail Store",
+  "Restaurant",
+  "Supermarket",
+  "Pharmacy",
+  "Electronics Store",
+  "Fashion Boutique",
+  "Other",
   'retail',
   'wholesale',
   'ecommerce',
@@ -81,7 +81,7 @@ const shopTypes = [
   'service',
   'consignment',
   'b2b',
-  'franchise'  
+  'franchise'
 ];
 
 interface Employee {

@@ -90,7 +90,8 @@ const Suppliers = () => {
     const fetchSuppliers = async () => {
       setIsLoading(true);
       setError(null);
-      AxiosClient.get("/suppliers").then((response) => {
+      let url = "/suppliers/shop/" + currentShop?.id;
+      AxiosClient.get(url).then((response) => {
         const { success, data } = response.data
         if (success && data?.suppliers) {
           const receivedSuppliers = data?.suppliers || [];
@@ -101,9 +102,13 @@ const Suppliers = () => {
           }));
           setSuppliers(formattedSuppliers);
         }
-      }).catch((err) => {
+      }).catch((err: any) => {
         console.error("Error fetching suppliers:", err);
-        setError("Erreur inattendue lors du chargement")
+        let message = 'Error loading suppliers';
+        if(err && err.message === 'Network Error') {
+          message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+        }
+        setError(message);
       }).finally(() => {
         setIsLoading(false)
       })
@@ -186,13 +191,15 @@ const Suppliers = () => {
       } else {
         throw new Error(message || `Failed to ${isEditing ? 'update' : 'add'} supplier`);
       }
-    } catch (error) {
-      console.error('Error adding/updating supplier:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add/update supplier",
-        variant: "destructive",
-      });
+    } catch (err: any) {
+      const response = err?.response;
+      let message = "Error processing your request";
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }else{
+        message = response?.data?.error || `Failed to ${isEditing ? 'update' : 'add'} supplier`;
+      }      
+      toast({ title: "Error", description: message, variant: "destructive"});      
     } finally {
       setIsLoadingInput(false);
     }
@@ -241,13 +248,15 @@ const Suppliers = () => {
       } else {
         throw new Error(message || 'Failed to delete supplier');
       }
-    } catch (error) {
-      console.error('Error deleting supplier:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete supplier",
-        variant: "destructive",
-      });
+    } catch (err: any) {
+      const response = err?.response;
+      let message = "Error processing your request";
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }else{
+        message = response?.data?.error || "Failed to delete supplier";
+      }      
+      toast({ title: "Error", description: message, variant: "destructive"});      
     } finally {
       setSupplierToDelete(null);
       setIsLoadingDelete(false);

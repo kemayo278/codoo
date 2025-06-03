@@ -82,9 +82,7 @@ const Categories = () => {
     }).catch((err: any) => {
       let message = 'Error loading categories';
       if(err && err.message === 'Network Error') {
-        message = 'Network Error, please check your connection';
-      }else{
-        message = 'Error loading categories';
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
       }
       setError(message);
     }).finally(() => {
@@ -223,7 +221,7 @@ const Categories = () => {
       }
     } catch (err: any) {
       const response = err?.response;
-      let message = "Failed to delete category";
+      let message = "";
       if(err && err.message === 'Network Error') {
         message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
       }else{

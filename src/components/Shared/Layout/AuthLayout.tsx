@@ -225,21 +225,15 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         token: data.token
       };
   
-    } catch (error: any) {
-      const response = error.response;
-      let message = 'Login failed';
-      if(error && error.message === 'Network Error') {
-        message = 'Network error, please check your connection';
-        toast({ title: "Error", description: message , variant: "destructive" });
-      }
-      if (response && response.status === 422) {
-        message = response.data.error;
-      } else if (response && response.status === 401) {
-        message = response.data.error || 'Invalid credentials';
-      } else {
-        console.error('Login error:', error);
-      }
-      toast({ title: "Error", description: message, variant: "destructive" });
+    } catch (err: any) {
+      const response = err?.response;
+      let message = "Error processing your request";
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }else{
+        message = response?.data?.error || "Login failed";
+      }      
+      toast({ title: "Error", description: message, variant: "destructive"});
       return { success: false, message: message, token: null };
     }
   };
@@ -338,15 +332,17 @@ export function AuthLayout({ children }: AuthLayoutProps) {
       toast({ title: "Error", description: message || 'Registration failed', variant: "destructive" });
       return { success: false, message };
       
-    } catch (error: any) {
-      const response = error.response;
-      if (response.status === 422) {
-        toast({ title: "Error", description: response.data.error, variant: "destructive" });     
-      }
-      return { 
-        success: false, 
-        message: error instanceof Error ? response.data.error : 'Registration failed' 
-      };       
+    } catch (err: any) {
+      const response = err?.response;
+      let message = "Error processing your request";
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }else{
+        message = response?.data?.error || "Error processing your request";
+      }      
+      toast({ title: "Error", description: message, variant: "destructive"});
+
+      return { success: false, message: message };      
     }
   };
 
@@ -472,15 +468,17 @@ export function AuthLayout({ children }: AuthLayoutProps) {
       router.push('/select-shop');
       return { success: true };
   
-    } catch (error) {
-      console.error('Setup error:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      return { success: false, message: errorMessage };
+    } catch (err: any) {
+      const response = err?.response;
+      let message = "Error processing your request";
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }else{
+        message = response?.data?.error || "Error processing your request";
+      }      
+      toast({ title: "Error", description: message, variant: "destructive"});
+
+      return { success: false, message: message };
     }
   };
   

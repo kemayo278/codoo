@@ -15,7 +15,7 @@ import AxiosClient from "@/lib/axiosClient"
 
 // Interface for Shop
 export interface Shop {
-  id?: number;
+  id?: string;
   name: string;
   type: string;
   status: 'active' | 'inactive';
@@ -106,7 +106,7 @@ export function Shops() {
   const fetchShops = async () => {
     try {
       setIsLoading(true);
-      await checkAuth(); // Refresh auth data
+      await checkAuth();
     } finally {
       setIsLoading(false);
     }

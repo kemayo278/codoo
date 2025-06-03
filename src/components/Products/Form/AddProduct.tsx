@@ -100,53 +100,50 @@ export function AddProduct({ onBack, editMode = false, productToEdit, onEditComp
   const { business, user, availableShops, currentShop } = useAuthLayout();
 
   // Get shop ID based on user role
-  const defaultShopId = (user?.role === 'admin' || user?.role === 'shop_owner') 
-    ? business?.shops?.[0]?.id 
-    : availableShops?.[0]?.id;
+  const defaultShopId = (user?.role === 'admin' || user?.role === 'shop_owner') ? business?.shops?.[0]?.id : availableShops?.[0]?.id;
 
-    const [formData, setFormData] = useState<FormData>(() => {
-      if (editMode && productToEdit) {
-        return {
-          name: productToEdit.product.name,
-          description: productToEdit.product.description,
-          sellingPrice: String(productToEdit.sellingPrice),
-          sku: productToEdit.product.sku || '',
-          category_id: productToEdit.product.categoryId,
-          shop_id: '',
-          status: productToEdit.status as "high_stock" | "medium_stock" | "low_stock" | "out_of_stock",
-          unitType: productToEdit.product.unitType || '',
-          purchasePrice: String(productToEdit.purchasePrice),
-          quantity: String(productToEdit.quantity),
-          reorderPoint: String(productToEdit.reorderPoint),
-          featuredImage: productToEdit.product.featuredImage || null,
-          additionalImages: (productToEdit.product.additionalImages ?? []) as (File | string)[],
-          businessId: business?.id,
-          userId: user?.id,
-          productType: productToEdit.product.typeId
-        };
-      }
-    
+  const [formData, setFormData] = useState<FormData>(() => {
+    if (editMode && productToEdit) {
       return {
-        name: '',
-        description: null,
-        sellingPrice: '',
-        sku: '',
-        category_id: undefined,
-        shop_id: defaultShopId || '',
-        status: 'high_stock', // OK ici, c’est une valeur valide de l’union
-        unitType: '',
-        purchasePrice: '',
-        quantity: '0',
-        reorderPoint: '10',
-        featuredImage: null,
-        additionalImages: [],
+        name: productToEdit.product.name,
+        description: productToEdit.product.description,
+        sellingPrice: String(productToEdit.sellingPrice),
+        sku: productToEdit.product.sku || '',
+        category_id: productToEdit.product.categoryId,
+        shop_id: '',
+        status: productToEdit.status as "high_stock" | "medium_stock" | "low_stock" | "out_of_stock",
+        unitType: productToEdit.product.unitType || '',
+        purchasePrice: String(productToEdit.purchasePrice),
+        quantity: String(productToEdit.quantity),
+        reorderPoint: String(productToEdit.reorderPoint),
+        featuredImage: productToEdit.product.featuredImage || null,
+        additionalImages: (productToEdit.product.additionalImages ?? []) as (File | string)[],
         businessId: business?.id,
         userId: user?.id,
-        productType: ''
+        productType: productToEdit.product.typeId
       };
-    });
+    }
+  
+    return {
+      name: '',
+      description: null,
+      sellingPrice: '',
+      sku: '',
+      category_id: undefined,
+      shop_id: defaultShopId || '',
+      status: 'high_stock', // OK ici, c’est une valeur valide de l’union
+      unitType: '',
+      purchasePrice: '',
+      quantity: '0',
+      reorderPoint: '10',
+      featuredImage: null,
+      additionalImages: [],
+      businessId: business?.id,
+      userId: user?.id,
+      productType: ''
+    };
+  });
     
-
   const [loading, setLoading] = useState(false);
   const [featuredImage, setFeaturedImage] = useState<File | null>(null);
   const [additionalImages, setAdditionalImages] = useState<File[]>([]);
@@ -160,20 +157,26 @@ export function AddProduct({ onBack, editMode = false, productToEdit, onEditComp
     const fetchInitialData = async () => {
       setLoading(true);
       try {
-      const [categoriesResponse, typeProductsResponse] = await Promise.all([
-        AxiosClient.get("/categories"),
-        AxiosClient.get("/type-products")
-      ]);
+        let url = "/categories/shop/" + currentShop?.id;
+        const [categoriesResponse, typeProductsResponse] = await Promise.all([
+          AxiosClient.get(url),
+          AxiosClient.get("/type-products")
+        ]);
 
-      if (categoriesResponse.data.success && categoriesResponse.data.data?.categories) {
-        setCategories(categoriesResponse.data.data.categories);
-      }
+        if (categoriesResponse.data.success && categoriesResponse.data.data?.categories) {
+          setCategories(categoriesResponse.data.data.categories);
+        }
 
-      if (typeProductsResponse.data.success && typeProductsResponse.data?.data) {
-        setTypeProducts(typeProductsResponse.data.data);
-      }
-      } catch (err) {
+        if (typeProductsResponse.data.success && typeProductsResponse.data?.data) {
+          setTypeProducts(typeProductsResponse.data.data);
+        }
+      } catch (err: any) {
         console.error("Error while fetching initial data:", err);
+        let message = 'Error while fetching initial data';
+        if(err && err.message === 'Network Error') {
+          message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+        }
+        throw new Error(message);   
       } finally {
         setLoading(false);
       }
@@ -240,6 +243,10 @@ export function AddProduct({ onBack, editMode = false, productToEdit, onEditComp
       if (editMode && productToEdit?.id) {
         // TODO: implement update logic here
         console.log(formData)
+        toast({
+          title: "Warning",
+          description: "Operation not available"
+        });
         
       } else {
         const { data, success } = (await AxiosClient.post("/products", productPayload)).data;
