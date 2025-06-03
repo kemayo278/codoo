@@ -8,7 +8,7 @@ import Image from 'next/image'
 import { useDashboard } from '@/hooks/useDashboard'
 import { useAuthLayout } from '@/components/Shared/Layout/AuthLayout'
 import { LoadingSpinner } from '@/components/Shared/ui/LoadingSpinner'
-import { ErrorAlert } from '@/components/Shared/ui/ErrorAlert'
+import ErrorAlert from "@/components/Shared/ui/ErrorAlert"
 import { useQuery } from '@tanstack/react-query'
 import { FilterControls } from './FilterControls'
 import { InventoryTrends } from './InventoryTrends'
@@ -275,7 +275,7 @@ export function InventoryDashboard() {
 
   if (error) return (
     <div className="p-8 bg-gray-100 min-h-screen">
-      <ErrorAlert message={error.message} />
+      <ErrorAlert message={error.message}  />
     </div>
   );
 

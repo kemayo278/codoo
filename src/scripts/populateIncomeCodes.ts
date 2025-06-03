@@ -1,4 +1,4 @@
-import OhadaCode from '../models/OhadaCode.js'; 
+// import OhadaCode from '../models/OhadaCode.js'; 
 
 const incomeTypes = {
   SALES: { code: "701", name: "Sales of Goods", description: "Ventes de marchandises" },
@@ -34,13 +34,13 @@ export async function populateIncomeCodes() {
     for (const key in incomeTypes) {
       const { code, name, description } = incomeTypes[key as keyof typeof incomeTypes];
       try {
-        await OhadaCode.create({ 
-          code, 
-          name, 
-          description, 
-          type: 'income',
-          classification: 'Class 7 - Revenue'
-        });
+        // await OhadaCode.create({ 
+        //   code, 
+        //   name, 
+        //   description, 
+        //   type: 'income',
+        //   classification: 'Class 7 - Revenue'
+        // });
       } catch (error: any) {
         if (error.name === 'SequelizeUniqueConstraintError') {
           console.log(`Code ${code} already exists, skipping...`);
@@ -54,13 +54,13 @@ export async function populateIncomeCodes() {
     for (const code in ohadaCodes) {
       const { description } = ohadaCodes[code as keyof typeof ohadaCodes];
       try {
-        await OhadaCode.create({ 
-          code,
-          name: description,
-          description,
-          type: 'income',
-          classification: 'Class 7 - Revenue'
-        });
+        // await OhadaCode.create({ 
+        //   code,
+        //   name: description,
+        //   description,
+        //   type: 'income',
+        //   classification: 'Class 7 - Revenue'
+        // });
       } catch (error: any) {
         if (error.name === 'SequelizeUniqueConstraintError') {
           console.log(`Code ${code} already exists, skipping...`);

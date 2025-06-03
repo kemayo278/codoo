@@ -4,6 +4,7 @@ const AxiosClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
   headers: {
     'Content-Type': 'application/json',
+    'Accept' : 'application/json'
   },
   timeout: 9000,
 });
@@ -13,6 +14,7 @@ AxiosClient.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('access_token');
+      console.log('Token:', token);
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -26,20 +28,16 @@ AxiosClient.interceptors.request.use(
 AxiosClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    try {
-      const { response } = error;
-      if (response && response.status === 401) {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('access_token');
-        }
-        // Tu peux rediriger vers login ici si besoin avec `router.push('/login')`
-      }
-    } catch (err) {
-      console.error(err);
+    const { response } = error;
+
+    if (response?.status === 401) {
+      // Ne redirige pas ici. Laisse React gérer la déconnexion
+      console.warn('Unauthorized - 401 reçu, à gérer dans React');
     }
 
-    throw error;
+    return Promise.reject(error);
   }
 );
+
 
 export default AxiosClient;

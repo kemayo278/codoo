@@ -123,10 +123,8 @@ export const AuthLayoutContext = createContext<AuthLayoutContextType | undefined
 
 export const useAuthLayout = () => {
   const context = useContext(AuthLayoutContext);
-  if (context === undefined) {
-    throw new Error('useAuthLayout must be used within an AuthLayoutProvider');
-  }
-  return context;
+  if (!context) throw new Error("useAuth must be used within an AuthLayout");
+  return context;  
 };
 
 interface AuthLayoutProps {
@@ -509,7 +507,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
 
   const checkAuth = async () => {
     try {
-      const isAuthenticated = localStorage.getItem('isAuthenticated') === 'false' ? false : true;
+      const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true' ? true : false;
       const storedToken = localStorage.getItem('access_token');
       const storedUser = localStorage.getItem('user');
       const storedBusiness = localStorage.getItem('business');
@@ -525,16 +523,16 @@ export function AuthLayout({ children }: AuthLayoutProps) {
       if (storedToken) setAccessToken(storedToken);
       setIsAuthenticated(isAuthenticated);
 
-      // 3. Si pas authentifié, logout
       if (!storedToken || !isAuthenticated) {
         console.log('No token or not authenticated');
         handleLogout();
         return;
       }
 
-      // 4. Vérification de session côté serveur
-      const response = await AxiosClient.post('/auth/check');
-      const { success, data, message } = response.data;
+      const responseB = await AxiosClient.post('/auth/check');
+      const { success, data, message } = responseB.data;
+
+      console.log('Auth check response:', { responseB });
 
       if (!success || !data?.user) {
         throw new Error(message || 'Invalid session');
@@ -555,9 +553,11 @@ export function AuthLayout({ children }: AuthLayoutProps) {
       setCurrentShopId(currentShopId);
       setAccessToken(storedToken);
       setIsAuthenticated(true);
+      console.log('Auth check successful:', { user, business, shops });
     } catch (error: any) {
       console.error('Auth check failed:', error);
       if (error.response?.status === 401) {
+        console.log('Session expired, logging out...11111');
         toast({
           title: 'Erreur',
           description: 'Session expirée, veuillez vous reconnecter.',

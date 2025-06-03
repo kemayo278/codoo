@@ -120,7 +120,7 @@ const Categories = () => {
   
       if (success && data?.category) {
         setCategories((prev) => [data.category,...prev]);
-        handleModalClose();
+        handleModalClose();  
         toast({title: "Success", description: "Category created successfully"});
       } else {
         setError(message || "Failed to create category");

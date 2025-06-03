@@ -66,15 +66,15 @@ export function registerInventoryHandlers() {
         };
 
         inventoryItems.forEach(item => {
-          const itemValue = item.quantity * item.unit_cost;
-          shopStats.inventory_value += itemValue;
-          stats.total_value += itemValue;
+          // const itemValue = item.quantity * item.unit_cost;
+          // shopStats.inventory_value += itemValue;
+          // stats.total_value += itemValue;
 
-          if (item.quantity <= 0) stats.out_of_stock_items++;
-          if (item.quantity <= item.reorder_point) {
-            stats.low_stock_items++;
-            shopStats.low_stock_count++;
-          }
+          // if (item.quantity <= 0) stats.out_of_stock_items++;
+          // if (item.quantity <= item.reorder_point) {
+          //   stats.low_stock_items++;
+          //   shopStats.low_stock_count++;
+          // }
         });
 
         stats.shop_stats[shop.id] = shopStats;
@@ -129,15 +129,15 @@ export function registerInventoryHandlers() {
         };
 
         inventoryItems.forEach(item => {
-          const itemValue = item.quantity * item.unit_cost;
-          shopStats.inventory_value += itemValue;
-          stats.total_value += itemValue;
+          // const itemValue = item.quantity * item.unit_cost;
+          // shopStats.inventory_value += itemValue;
+          // stats.total_value += itemValue;
 
-          if (item.quantity <= 0) stats.out_of_stock_items++;
-          if (item.quantity <= item.reorder_point) {
-            stats.low_stock_items++;
-            shopStats.low_stock_count++;
-          }
+          // if (item.quantity <= 0) stats.out_of_stock_items++;
+          // if (item.quantity <= item.reorder_point) {
+          //   stats.low_stock_items++;
+          //   shopStats.low_stock_count++;
+          // }
         });
 
         stats.shop_stats[shop.id] = shopStats;

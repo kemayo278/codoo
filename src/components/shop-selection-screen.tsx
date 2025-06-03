@@ -37,7 +37,7 @@ export function ShopSelectionScreen() {
   const [searchQuery, setSearchQuery] = useState("")
   const router = useRouter()
 
-  const { business, user, availableShops, checkAuth, currentShop, setCurrentShopModel } = useAuthLayout();
+  const { business, user, availableShops, checkAuth, currentShop, setCurrentShopModel, setCurrentShop } = useAuthLayout();
 
   const shops = availableShops || business?.shops || [];
 
@@ -59,6 +59,7 @@ export function ShopSelectionScreen() {
       setIsLoading(true)
       setTimeout(() => {
         setCurrentShopModel(selectedShop)
+        setCurrentShop(selectedShop.id)
         setIsLoading(false)
         router.push(`/dashboard`)
       }, 1000)
@@ -70,7 +71,6 @@ export function ShopSelectionScreen() {
   const handleAddShop = () => {
     // In a real app, this would navigate to a shop creation page or open a modal
     console.log("Add new shop")
-    // router.push("/create-shop")
   }
 
   useEffect(() => {

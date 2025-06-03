@@ -29,7 +29,7 @@ import { useAppTranslation } from '@/hooks/useAppTranslation'
 import { safeIpcInvoke } from '@/lib/ipc'
 import { useAuthLayout } from '@/components/Shared/Layout/AuthLayout'
 import { LoadingSpinner } from '@/components/Shared/ui/LoadingSpinner'
-import { ErrorAlert } from '@/components/Shared/ui/ErrorAlert'
+import ErrorAlert from "@/components/Shared/ui/ErrorAlert"
 import { toast } from '@/hooks/use-toast'
 import EditWarehouse from '../Form/EditWarehouse'
 
@@ -203,12 +203,12 @@ export function WarehouseList() {
 
   if (selectedWarehouseId) {
     const selectedWarehouse = warehouses.find(w => w.id === selectedWarehouseId);
-    return <InventoryList 
-      warehouseId={selectedWarehouseId} 
-      warehouseName={selectedWarehouse?.name || 'Warehouse'}
-      onBack={() => setSelectedWarehouseId(null)}
-      parentView="warehouse"
-    />
+    // return <InventoryList 
+    //   warehouseId={selectedWarehouseId} 
+    //   warehouseName={selectedWarehouse?.name || 'Warehouse'}
+    //   onBack={() => setSelectedWarehouseId(null)}
+    //   parentView="warehouse"
+    // />
   }
 
   if (editWarehouse) {

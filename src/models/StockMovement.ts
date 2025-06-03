@@ -111,15 +111,15 @@ class StockMovement extends Model<StockMovementAttributes> implements StockMovem
           afterCreate: async (movement: StockMovement) => {
             // Update InventoryItem quantity
             const inventoryItem = await InventoryItem.findByPk(movement.inventoryItem_id);
-            if (inventoryItem) {
-              const quantityChange = movement.direction === 'inbound' ? movement.quantity : -movement.quantity;
-              await inventoryItem.increment('quantity', { by: quantityChange });
+            // if (inventoryItem) {
+            //   const quantityChange = movement.direction === 'inbound' ? movement.quantity : -movement.quantity;
+            //   await inventoryItem.increment('quantity', { by: quantityChange });
               
-              // Update last_restock_date if it's an inbound movement
-              if (movement.direction === 'inbound') {
-                await inventoryItem.update({ last_restock_date: new Date() });
-              }
-            }
+            //   // Update last_restock_date if it's an inbound movement
+            //   if (movement.direction === 'inbound') {
+            //     await inventoryItem.update({ last_restock_date: new Date() });
+            //   }
+            // }
           }
         }
       }

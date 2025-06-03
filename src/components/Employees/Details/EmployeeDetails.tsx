@@ -11,6 +11,8 @@ import { useAuthLayout } from "@/components/Shared/Layout/AuthLayout"
 import { useEffect, useState } from 'react';
 import { SecurityLog } from "@/types/securityLog"
 import { safeIpcInvoke } from '@/lib/ipc';
+import AxiosClient from "@/lib/axiosClient"
+import LoadingIndicator from "@/components/Shared/ui/LoadingIndicator"
 
 interface EmployeeDetailsProps {
   employee: Employee;
@@ -31,30 +33,33 @@ const getRoleColor = (role: string): string => {
 }
 
 export function EmployeeDetails({ employee, onBack }: EmployeeDetailsProps) {
-  const { user, business, availableShops } = useAuthLayout();
+  const { currentShop } = useAuthLayout();
   const [activities, setActivities] = useState<SecurityLog[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const currentShop = (user?.role === 'admin' || user?.role === 'shop_owner')
-    ? business?.shops?.find(shop => shop.id === employee.shopId)
-    : availableShops?.find(shop => shop.id === employee.shopId);
 
   const fetchActivities = async () => {
     try {
-      const response = await safeIpcInvoke<SecurityLog[]>(
-        'getEmployeeActivities',
-        { userId: employee.user?.id ?? '' },
-        []
-      );
-
-      if (response) {
-        setActivities(response);
-        setError('');
-      } else {
-        setError('Failed to load activities');
+      setError('')
+      setLoading(true)
+      let payload = {user_id: employee.user?.id, shop_id: currentShop?.id}     
+      const response = await AxiosClient.post("/security-logs/filter", payload);
+      console.log(response)
+      const { success, data } = response.data; 
+      if (success && data?.logs) {
+        setActivities(data.logs)
       }
-    } catch (err) {
-      setError('Failed to load activities');
+    } catch (err: any) {
+      const response = err?.response;
+      let message = 'Error loading logs';
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }else{
+        message = response?.data?.error || 'Error loading logs';
+      }
+      setError(message);
+    }finally {
+      setLoading(false)
     }
   };
 
@@ -114,7 +119,9 @@ export function EmployeeDetails({ employee, onBack }: EmployeeDetailsProps) {
                       {error}
                     </TableCell>
                   </TableRow>
-                ) : activities.length === 0 ? (
+                ) : loading ? (
+                  <LoadingIndicator title="Loading Logs..." subtitle="This may take a few moments" />  
+                ) : activities.length === 0 && !loading ? (
                   <TableRow>
                     <TableCell colSpan={2} className="text-center h-24">
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -126,9 +133,9 @@ export function EmployeeDetails({ employee, onBack }: EmployeeDetailsProps) {
                 ) : (
                   activities.map((activity) => (
                     <TableRow key={activity.id}>
-                      <TableCell>{activity.event_type}</TableCell>
+                      <TableCell>{activity.eventType}</TableCell>
                       <TableCell>
-                        {new Date(activity.created_at).toLocaleString()}
+                        {new Date(activity.createdAt).toLocaleString()}
                       </TableCell>
                     </TableRow>
                   ))

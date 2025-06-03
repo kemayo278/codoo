@@ -3,7 +3,7 @@ import { Button } from "@/components/Shared/ui/button"
 interface ErrorAlertProps {
   title? : string;
   message: string;
-  onRetry: () => void;
+  onRetry?: () => void;
 }
 
 export default function ErrorAlert({ title, message, onRetry }: ErrorAlertProps) {

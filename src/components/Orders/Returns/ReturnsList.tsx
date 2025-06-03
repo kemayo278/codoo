@@ -1096,6 +1096,8 @@ const Returns = () => {
           setIsDeleteModalOpen(false);
           setReturnToDelete(null);
         }}
+        title="Delete Return"
+        description="Are you sure you want to delete this return? This action cannot be undone."
         onConfirm={handleDeleteConfirm}
       />
 

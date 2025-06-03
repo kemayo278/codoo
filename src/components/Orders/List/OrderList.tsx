@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Button } from "@/components/Shared/ui/button"
 import { Input } from "@/components/Shared/ui/input"
 import jsPDF from 'jspdf';
-import autoTable, { RowInput } from 'jspdf-autotable';
+// import autoTable, { RowInput } from 'jspdf-autotable';
 import { MoreHorizontal, ListFilter, PlusCircle, Store } from "lucide-react"
 import { formatCurrency } from '@/lib/utils'
 
@@ -305,7 +305,7 @@ export function OrderList({ onOrderClick, onAddOrder }: OrderListProps) {
         sale.deliveryStatus ?? 'N/A',
         formatCurrencyForExport(sale.netAmount),
         sale.paymentStatus ?? 'N/A'
-      ])) as RowInput[];
+      ]));
 
       if (format === 'csv' || format === 'excel') {
         const mimeType = format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -366,16 +366,16 @@ export function OrderList({ onOrderClick, onAddOrder }: OrderListProps) {
           }
           
           // Table
-          autoTable(doc, {
-            head: [headers.map(h => h.toUpperCase())],
-            body: data,
-            startY: currentShop ? 40 : 25,
-            theme: 'grid',
-            styles: { fontSize: 9, cellPadding: 2 },
-            headStyles: { fillColor: [55, 65, 81], textColor: 255 },
-            alternateRowStyles: { fillColor: [249, 250, 251] },
-            margin: { horizontal: 14 },
-          });
+          // autoTable(doc, {
+          //   head: [headers.map(h => h.toUpperCase())],
+          //   body: data,
+          //   startY: currentShop ? 40 : 25,
+          //   theme: 'grid',
+          //   styles: { fontSize: 9, cellPadding: 2 },
+          //   headStyles: { fillColor: [55, 65, 81], textColor: 255 },
+          //   alternateRowStyles: { fillColor: [249, 250, 251] },
+          //   margin: { horizontal: 14 },
+          // });
 
           // Footer
           const pageCount = (doc as any).getNumberOfPages();

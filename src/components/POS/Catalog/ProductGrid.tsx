@@ -14,6 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import { AddProduct } from "@/components/Products/Form/AddProduct"
 import EmptyState from './Empty/EmptyState'
 import { PrinterService } from "@/services/printerService";
+import AxiosClient from "@/lib/axiosClient"
 
 // Define the Product interface
 interface Product {
@@ -87,13 +88,13 @@ interface Category {
 }
 
 interface ProductCardProps {
-  product: Product;
-  onAddToCart: (product: Product) => void;
+  product: ProductShopAttributes;
+  onAddToCart: (product: ProductShopAttributes) => void;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   // Normalize the image path by converting backslashes to forward slashes
-  const normalizedImagePath = product.featuredImage?.replace(/\\/g, '/');
+  const normalizedImagePath = product.product.featuredImage?.replace(/\\/g, '/');
   
   // Check if product has multiple inventories
   const hasMultipleInventories = product.inventories && product.inventories.length > 1;
@@ -110,7 +111,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
             product.status === 'medium_stock' ? 'bg-yellow-100 text-yellow-800' :
               'bg-red-100 text-red-800'}`}
         >
-          in stock
+          {/* in stock */}
+            {product.status.replace(/_/g, ' ')}
         </span>
 
         {/* Removed warehouse count badge */}
@@ -118,7 +120,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
         <div className="flex justify-center mb-2">
           <Image
             src={normalizedImagePath || '/assets/images/box.png'}
-            alt={product.name}
+            alt={product.product.name}
             className="w-full h-16 object-contain"
             width={64}
             height={64}
@@ -127,7 +129,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
 
         <div className="flex flex-col gap-0.5">
           <h3 className="text-xs font-medium truncate">
-            {product.name}
+            {product.product.name}
           </h3>
           <p className="text-xs font-semibold">
             {product.sellingPrice} XAF
@@ -285,6 +287,27 @@ const defaultCustomer: Customer = {
   phone: ''
 };
 
+interface ProductShopAttributes {
+  id: string;
+  quantity: number;
+  sellingPrice: string;
+  status: string;
+  shopId: string;
+  productId: string;
+  purchasePrice: string;
+  reorderPoint: number;
+  minimumStockLevel: number | null;
+  maximumStockLevel: number | null;
+  valuationMethod: string;
+  hasExpiryDate: number;
+  hasBatchTracking: number;
+  priceHistories: any[]; // À adapter si tu as la structure des historiques de prix
+  inventories?: InventoryItem[]; // Add inventories to track warehouse information
+  product: Product;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export function Pos() {
   const { user, business, availableShops } = useAuthLayout();
   const [selectedShopId, setSelectedShopId] = useState<string>(
@@ -305,7 +328,8 @@ export function Pos() {
   const [amountPaid, setAmountPaid] = useState<number>(0);
   const [changeAmount, setChangeAmount] = useState<number>(0);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
+  // const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductShopAttributes[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -320,60 +344,29 @@ export function Pos() {
 
   // Extract fetchProducts function to make it available throughout the component
   const fetchProducts = async () => {
-    if (!business?.id) {
-      console.log('No business ID during product load');
-      return;
-    }
-
     try {
       setIsLoading(true);
-      setError(null);
 
-      const shopIds = business.shops
-        ?.filter(shop => shop?.id)
-        .map(shop => shop.id) || [];
+      const [productsResponse, categoriesResponse] = await Promise.all([
+        AxiosClient.get("/products/price-histories"),
+        AxiosClient.get("/categories"),
+      ]);
 
-      console.log('Found shop IDs:', shopIds);
+      const { success: productsSuccess, data: productsData, } = productsResponse.data;
 
-      if (shopIds.length === 0) {
-        console.log('No shop IDs found');
-        setError('No shops available');
-        return;
+      const { success: categoriesSuccess, data: categoriesData } = categoriesResponse.data;
+
+      if (productsSuccess && productsData?.productShops) {
+        setProducts(productsData.productShops);
       }
 
-      const shopIdToUse = (user?.role === 'admin' || user?.role === 'shop_owner')
-        ? selectedShopId
-        : availableShops?.[0]?.id;
-
-      if (!shopIdToUse) {
-        console.log('No shop ID to use');
-        setError('No shop selected');
-        return;
+      if (categoriesSuccess && categoriesData?.categories) {
+        setCategories(categoriesData.categories);
       }
-
-      // Fetch products with inventory information
-      const response = await safeIpcInvoke<{
-        success: boolean;
-        message?: string;
-        products: any[];
-      }>('inventory:product:get-all-with-inventories', {
-        shopIds: [shopIdToUse],
-        businessId: business.id,
-        includeInventories: true
-      }, {
-        success: false,
-        products: []
-      });
-
-      if (!response?.success) {
-        throw new Error(response?.message || 'Failed to fetch products');
-      }
-
-      setProducts(response.products || []);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      setError('Failed to load products');
+    } catch (err) {
+      console.error("Unexpected error while loading products or categories:", err);
+      setError("Unexpected error occurred while loading data.");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -387,8 +380,8 @@ export function Pos() {
   };
 
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || product.category_id === selectedCategory;
+    const matchesSearch = product.product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || product.product.category_id === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -399,7 +392,7 @@ export function Pos() {
     currentPage * itemsPerPage
   )
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: ProductShopAttributes) => {
     if (product.quantity <= 0 || product.status === 'out_of_stock') {
       setAlertMessage("This product is out of stock.");
       return;
@@ -417,36 +410,36 @@ export function Pos() {
       }
     }
     
-    const existingItem = cartItems.find(item => item.id === product.id)
-    if (existingItem) {
-      setCartItems(cartItems.map(item =>
-        item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-      ))
-    } else {
-      // --- Start Corrected Logic ---
-      // Directly use product.inventories. Ensure it's an array.
-      const productInventories = Array.isArray(product.inventories) ? product.inventories : [];
+    // const existingItem = cartItems.find(item => item.id === product.id)
+    // if (existingItem) {
+    //   setCartItems(cartItems.map(item =>
+    //     item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+    //   ))
+    // } else {
+    //   // --- Start Corrected Logic ---
+    //   // Directly use product.inventories. Ensure it's an array.
+    //   const productInventories = Array.isArray(product.inventories) ? product.inventories : [];
 
-      // Select the default inventory from the full list (e.g., the first one if available)
-      let defaultInventoryForItem: InventoryItem | undefined = undefined;
-      if (productInventories.length > 0) {
-          // Simple selection of the first item as default for now
-          defaultInventoryForItem = productInventories[0]; 
-      }
+    //   // Select the default inventory from the full list (e.g., the first one if available)
+    //   let defaultInventoryForItem: InventoryItem | undefined = undefined;
+    //   if (productInventories.length > 0) {
+    //       // Simple selection of the first item as default for now
+    //       defaultInventoryForItem = productInventories[0]; 
+    //   }
 
-      // Add the new item to the cart, passing the *complete* inventories list.
-      // Ensure we are creating a new object for the cart item.
-      const newItem: CartItem = {
-        ...product, // Spread product properties first
-        inventories: productInventories, // Explicitly set the full inventories list
-        quantity: 1,
-        actualPrice: product.sellingPrice,
-        selectedInventory: defaultInventoryForItem // Use the determined default
-      };
+    //   // Add the new item to the cart, passing the *complete* inventories list.
+    //   // Ensure we are creating a new object for the cart item.
+    //   const newItem: CartItem = {
+    //     ...product, // Spread product properties first
+    //     inventories: productInventories, // Explicitly set the full inventories list
+    //     quantity: 1,
+    //     // actualPrice: product.sellingPrice,
+    //     selectedInventory: defaultInventoryForItem // Use the determined default
+    //   };
 
-      setCartItems(prevCartItems => [...prevCartItems, newItem]);
-      // --- End Corrected Logic ---
-    }
+    //   setCartItems(prevCartItems => [...prevCartItems, newItem]);
+    //   // --- End Corrected Logic ---
+    // }
   }
 
   const updateQuantity = (id: string, newQuantity: number) => {
@@ -678,47 +671,24 @@ export function Pos() {
   }, [amountPaid, cartItems]);
 
   useEffect(() => {
-    if (!business?.id && !authChecked) {
-      console.log('No business ID found in ProductGrid');
-      setError('Authentication required');
-      setAuthChecked(true);
-      return;
-    }
-
     if (business?.id && !authChecked) {
-      console.log('Loading products in ProductGrid');
       fetchProducts();
-      setAuthChecked(true);
     }
-  }, [business?.id, authChecked, selectedShopId, availableShops]);
+  }, [business?.id, authChecked, selectedShopId]);
 
   useEffect(() => {
     const fetchCustomers = async () => {
-      try {
-        // Get shop IDs based on user role
-        const shopIds = (user?.role === 'admin' || user?.role === 'shop_owner')
-          ? business?.shops?.map(shop => shop.id) || []
-          : [business?.shops?.[0]?.id].filter(Boolean) as string[];
-
-        const response = await safeIpcInvoke('entities:customer:get-all', {
-          shopIds,
-          userRole: user?.role
-        }, {
-          success: false,
-          customers: []
-        });
-
-        if (response?.success) {
-          setCustomers(response.customers);
+      AxiosClient.get("/customers").then((response) => {
+        const { success, data } = response.data
+        if (success && data?.customers) {
+          setCustomers(data.customers)
         }
-      } catch (error) {
-        console.error('Error fetching customers:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load customers",
-          variant: "destructive",
-        });
-      }
+      }).catch((err) => {
+        console.error("error loading customers :", err)
+        setError("error loading customers")
+      }).finally(() => {
+        setIsLoading(false);
+      })
     };
 
     fetchCustomers();
@@ -807,24 +777,6 @@ export function Pos() {
                 />
               </svg>
             </div>
-
-            {(user?.role === 'admin' || user?.role === 'shop_owner') && (
-              <Select
-                value={selectedShopId}
-                onValueChange={setSelectedShopId}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select Shop" />
-                </SelectTrigger>
-                <SelectContent>
-                  {business?.shops?.map((shop: any) => (
-                    <SelectItem key={shop.id} value={shop.id}>
-                      {shop.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
           </div>
 
           {/* Product Grid - 6x6 Layout */}

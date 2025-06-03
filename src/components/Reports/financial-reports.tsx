@@ -13,7 +13,7 @@ import { BarChart, Bar } from 'recharts'
 import { useDashboard } from '@/hooks/useDashboard'
 import { useAuthLayout } from '@/components/Shared/Layout/AuthLayout'
 import { LoadingSpinner } from '@/components/Shared/ui/LoadingSpinner'
-import { ErrorAlert } from '@/components/Shared/ui/ErrorAlert'
+import ErrorAlert from "@/components/Shared/ui/ErrorAlert"
 import { safeIpcInvoke } from '@/lib/ipc'
 import { DASHBOARD_CHANNELS } from '@/constants/ipcChannels'
 import { Shop } from '@/types/Shop'

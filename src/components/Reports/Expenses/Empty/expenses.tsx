@@ -26,7 +26,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ConfirmationDialog } from '@/components/Shared/ui/Modal/confirmation-dialog'
 import jsPDF from 'jspdf';
-import autoTable, { RowInput } from 'jspdf-autotable';
+// import autoTable, { RowInput } from 'jspdf-autotable';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -601,7 +601,8 @@ const Expenses = () => {
         formatCurrencyForExport(Number(item.amount)),
         item.paymentMethod?.replace('_', ' ') || 'N/A',
         item.ohadaCode?.name || 'Unknown'
-      ])) as unknown as RowInput[];
+      // ])) as unknown as RowInput[];
+      ]))
 
       if (format === 'csv' || format === 'excel') {
         const mimeType = format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -662,16 +663,16 @@ const Expenses = () => {
           }
           
           // Table
-          autoTable(doc, {
-            head: [headers.map(h => h.toUpperCase())],
-            body: data,
-            startY: business ? 40 : 25,
-            theme: 'grid',
-            styles: { fontSize: 9, cellPadding: 2 },
-            headStyles: { fillColor: [55, 65, 81], textColor: 255 },
-            alternateRowStyles: { fillColor: [249, 250, 251] },
-            margin: { horizontal: 14 },
-          });
+          // autoTable(doc, {
+          //   head: [headers.map(h => h.toUpperCase())],
+          //   body: data,
+          //   startY: business ? 40 : 25,
+          //   theme: 'grid',
+          //   styles: { fontSize: 9, cellPadding: 2 },
+          //   headStyles: { fillColor: [55, 65, 81], textColor: 255 },
+          //   alternateRowStyles: { fillColor: [249, 250, 251] },
+          //   margin: { horizontal: 14 },
+          // });
 
           // Footer
           const pageCount = (doc as any).getNumberOfPages();

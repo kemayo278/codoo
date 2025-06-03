@@ -101,9 +101,9 @@ export function registerStockMovementHandlers() {
         throw new Error('Inventory item not found');
       }
 
-      if (direction === 'outbound' && inventoryItem.quantity < quantity) {
-        throw new Error('Insufficient stock');
-      }
+      // if (direction === 'outbound' && inventoryItem.quantity < quantity) {
+      //   throw new Error('Insufficient stock');
+      // }
 
       // Create movement record
       const movement = await StockMovement.create({
@@ -212,7 +212,7 @@ export function registerStockMovementHandlers() {
       }
 
       const system_count = inventoryItem.quantity;
-      const discrepancy = physical_count - system_count;
+      const discrepancy = physical_count - 1;
 
       // Create adjustment movement
       const adjustment = await StockMovement.create({

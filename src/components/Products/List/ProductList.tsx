@@ -185,6 +185,8 @@ export function ProductList({ onAddProduct }: ProductListProps) {
     } catch (err) {
       console.error("Unexpected error while loading products:", err);
       setError("Unexpected error occurred while loading products.");
+    }finally{
+      setIsLoading(false)
     }
   };
 

@@ -14,6 +14,7 @@ export interface InventoryItemAttributes {
   cost_price: number;
   selling_price: number;
   quantity_sold: number;
+  quantity?: number;
   returned_to_shop: number;
   returned_to_supplier: number;
   quantity_left: number;
@@ -38,6 +39,7 @@ class InventoryItem extends Model<InventoryItemAttributes> implements InventoryI
   public cost_price!: number;
   public selling_price!: number;
   public quantity_sold!: number;
+  public quantity?: number;
   public returned_to_shop!: number;
   public returned_to_supplier!: number;
   public quantity_left!: number;
@@ -80,6 +82,11 @@ class InventoryItem extends Model<InventoryItemAttributes> implements InventoryI
             model: 'Inventory',
             key: 'id',
           },
+        },
+        quantity : {
+          type: DataTypes.INTEGER,
+          allowNull: true,
+          defaultValue: 0
         },
         supplier_id: {
           type: DataTypes.UUID,
