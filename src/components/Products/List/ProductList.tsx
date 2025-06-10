@@ -162,8 +162,7 @@ export function ProductList({ onAddProduct }: ProductListProps) {
 
   const fetchData = async () => {
     try {
-      await loadProductsWithPriceHistories();
-      await loadCategories();
+      await loadProductsAndCategories();
     } catch (error) {
       console.error("Error during data initialization:", error);
     } finally {
@@ -172,47 +171,47 @@ export function ProductList({ onAddProduct }: ProductListProps) {
   };
 
   // Load products with price history
-  const loadProductsWithPriceHistories = async () => {
+  const loadProductsAndCategories = async () => {
     setError(null);
     setIsLoading(true);
+    setIsLoadingCategories(true);
+
     try {
-      let url = "/products/price-history/shop/" + currentShop?.id;
-      const response = await AxiosClient.get(url);
-      const { success, data } = response.data;
-      if (success && data?.productShops) {
-        setProducts(data.productShops);
+      const shopId = currentShop?.id;
+      if (!shopId) {
+        throw new Error("Missing current shop");
+      }
+
+      const [productsResponse, categoriesResponse] = await Promise.all([
+        AxiosClient.get(`/products/price-history/shop/${shopId}`),
+        AxiosClient.get(`/categories/shop/${shopId}`),
+      ]);
+
+      const { success: productsSuccess, data: productsData, } = productsResponse.data;
+
+      const { success: categoriesSuccess, data: categoriesData, } = categoriesResponse.data;
+
+      if (productsSuccess && productsData?.productShops) {
+        setProducts(productsData.productShops);
+      }
+
+      if (categoriesSuccess && categoriesData?.categories) {
+        setCategories(categoriesData.categories);
       }
     } catch (err: any) {
-      let message = 'Error loading products';
-      if(err && err.message === 'Network Error') {
+      let message = "Error loading data";
+      if (err?.message === "Network Error") {
         message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      } else if (err?.message === "Missing current shop") {
+        message = "Aucune boutique sélectionnée.";
       }
-      setError(message);      
-    }finally{
-      setIsLoading(false)
+      setError(message);
+    } finally {
+      setIsLoading(false);
+      setIsLoadingCategories(false);
     }
   };
 
-  // Load categories
-  const loadCategories = async () => {
-    setError(null)
-    setIsLoadingCategories(true)
-    let url = "/categories/shop/" + currentShop?.id;
-    AxiosClient.get(url).then((response) => {
-      const { success, data } = response.data
-      if (success && data?.categories) {
-        setCategories(data.categories)
-      }
-    }).catch((err: any) => {
-      let message = 'Error loading categories';
-      if(err && err.message === 'Network Error') {
-        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
-      }
-      setError(message);
-    }).finally(() => {
-      setIsLoadingCategories(false)
-    })
-  }
 
   const handleDeleteClick = (productShop: ProductShopAttributes) => {
     setProductToDelete(productShop);

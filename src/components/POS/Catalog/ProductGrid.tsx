@@ -15,6 +15,7 @@ import { AddProduct } from "@/components/Products/Form/AddProduct"
 import EmptyState from './Empty/EmptyState'
 import { PrinterService } from "@/services/printerService";
 import AxiosClient from "@/lib/axiosClient"
+import { ButtonSpinner } from "@/components/Shared/ui/ButtonSpinner"
 
 // Define the Product interface
 interface Product {
@@ -33,7 +34,7 @@ interface Product {
 }
 
 // Define the CartItem interface (extends Product with quantity and inventory)
-interface CartItem extends Product {
+interface CartItem extends ProductShopAttributes {
   quantity: number;
   actualPrice: number;
   selectedInventory?: InventoryItem; // Keep this for compatibility
@@ -61,7 +62,7 @@ interface InventoryItem {
 
 // Define the Customer interface
 interface Customer {
-  id: number;
+  id: string | null; // Use string for ID to match Select value type
   name: string;
   phone: string;
   email?: string;
@@ -170,119 +171,119 @@ const CartItem: React.FC<CartItemProps> = ({
   }, [item.inventories]); // Recalculate only when item.inventories changes
 
   return (
-  <div className="flex flex-col py-2 border-b px-2"> {/* Removed cursor-pointer */}
-    <div className="flex justify-between items-start mb-1 pb-1"> {/* Added mb-1 and pb-1 */}
-      <div className="space-y-1 flex-1 mr-2"> {/* Added flex-1 mr-2 */}
-        <h4 className="font-medium text-sm truncate">{item.name}</h4> {/* Added truncate */}
-        <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            value={item.actualPrice}
-            onChange={(e) => {
-              const newPrice = parseFloat(e.target.value);
-              if (!isNaN(newPrice) && newPrice >= 0) {
-                onUpdatePrice(item.id, newPrice);
-              }
-            }}
-            className="w-24 h-8 text-sm"
-          />
-          <span className="text-xs text-gray-500">XAF</span>
+    <div className="flex flex-col py-2 border-b px-2"> {/* Removed cursor-pointer */}
+      <div className="flex justify-between items-start mb-1 pb-1"> {/* Added mb-1 and pb-1 */}
+        <div className="space-y-1 flex-1 mr-2"> {/* Added flex-1 mr-2 */}
+          <h4 className="font-medium text-sm truncate">{item.product.name}</h4> {/* Added truncate */}
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              value={item.actualPrice}
+              onChange={(e) => {
+                const newPrice = parseFloat(e.target.value);
+                if (!isNaN(newPrice) && newPrice >= 0) {
+                  onUpdatePrice(item.id, newPrice);
+                }
+              }}
+              className="w-24 h-8 text-sm"
+            />
+            <span className="text-xs text-gray-500">XAF</span>
+          </div>
         </div>
+
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+            className="h-7 w-7"
+          >
+            <Minus className="h-3 w-3" />
+          </Button>
+          <span className="w-8 text-center text-sm">{item.quantity}</span>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+            className="h-7 w-7"
+          >
+            <Plus className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onRemove(item.id)}
+            className="h-7 w-7 ml-1"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+
+        {/* REMOVED Duplicated Quantity Controls */}
+        {/* <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+            className="h-7 w-7"
+          >
+            <Minus className="h-3 w-3" />
+          </Button>
+          <span className="w-8 text-center text-sm">{item.quantity}</span>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+            className="h-7 w-7"
+          >
+            <Plus className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onRemove(item.id)}
+            className="h-7 w-7 ml-1"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </div> */}
       </div>
 
-      <div className="flex items-center gap-1">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-          className="h-7 w-7"
+      {/* Warehouse Selection for this item - Use the filtered (but not unique by ID) list */}
+      {/* Show dropdown if there's at least one valid inventory item */}
+      {validInventoriesForDropdown.length > 0 && (
+        <Select
+          // Use the specific InventoryItem ID (inv.id) for the value if available, fallback needed if selectedInventory isn't set yet
+          value={item.selectedInventory?.id ?? ''} 
+          // Pass the InventoryItem ID (inv.id) to the handler
+          onValueChange={(inventoryItemId) => onUpdateItemWarehouse(item.id, inventoryItemId)} 
         >
-          <Minus className="h-3 w-3" />
-        </Button>
-        <span className="w-8 text-center text-sm">{item.quantity}</span>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-          className="h-7 w-7"
-        >
-          <Plus className="h-3 w-3" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => onRemove(item.id)}
-          className="h-7 w-7 ml-1"
-        >
-          <X className="h-3 w-3" />
-        </Button>
-      </div>
-
-      {/* REMOVED Duplicated Quantity Controls */}
-      {/* <div className="flex items-center gap-1">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-          className="h-7 w-7"
-        >
-          <Minus className="h-3 w-3" />
-        </Button>
-        <span className="w-8 text-center text-sm">{item.quantity}</span>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-          className="h-7 w-7"
-        >
-          <Plus className="h-3 w-3" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => onRemove(item.id)}
-          className="h-7 w-7 ml-1"
-        >
-          <X className="h-3 w-3" />
-        </Button>
-      </div> */}
+          <SelectTrigger className="h-8 text-xs w-full relative z-10">
+            <SelectValue placeholder="Select Stock Entry / Warehouse" />
+          </SelectTrigger>
+          <SelectContent className="z-50">
+            {validInventoriesForDropdown.map((inv) => { // Map over the filtered list
+                // Log the inventory item being rendered to check its quantity
+                console.log(`Rendering dropdown item for ${item.product.name} - Warehouse ${inv.inventory?.name} (Item ID: ${inv.id}):`, inv);
+                return (
+                  // Use the InventoryItem's own ID (inv.id) as the key and value
+                  <SelectItem key={`${item.id}-${inv.id}`} value={inv.id} className="text-xs">
+                    {/* Display warehouse name and quantity for this specific inventory item */}
+                    {inv.inventory?.name || 'Unnamed Warehouse'} ({inv.quantity} in stock)
+                    {/* Optionally add more details like batch number if available */}
+                  </SelectItem>
+                );
+            })}
+          </SelectContent>
+        </Select>
+      )}
     </div>
-
-    {/* Warehouse Selection for this item - Use the filtered (but not unique by ID) list */}
-    {/* Show dropdown if there's at least one valid inventory item */}
-    {validInventoriesForDropdown.length > 0 && (
-      <Select
-        // Use the specific InventoryItem ID (inv.id) for the value if available, fallback needed if selectedInventory isn't set yet
-        value={item.selectedInventory?.id ?? ''} 
-        // Pass the InventoryItem ID (inv.id) to the handler
-        onValueChange={(inventoryItemId) => onUpdateItemWarehouse(item.id, inventoryItemId)} 
-      >
-        <SelectTrigger className="h-8 text-xs w-full relative z-10">
-          <SelectValue placeholder="Select Stock Entry / Warehouse" />
-        </SelectTrigger>
-        <SelectContent className="z-50">
-          {validInventoriesForDropdown.map((inv) => { // Map over the filtered list
-              // Log the inventory item being rendered to check its quantity
-              console.log(`Rendering dropdown item for ${item.name} - Warehouse ${inv.inventory?.name} (Item ID: ${inv.id}):`, inv);
-              return (
-                // Use the InventoryItem's own ID (inv.id) as the key and value
-                <SelectItem key={`${item.id}-${inv.id}`} value={inv.id} className="text-xs">
-                  {/* Display warehouse name and quantity for this specific inventory item */}
-                  {inv.inventory?.name || 'Unnamed Warehouse'} ({inv.quantity} in stock)
-                  {/* Optionally add more details like batch number if available */}
-                </SelectItem>
-              );
-          })}
-        </SelectContent>
-      </Select>
-    )}
-  </div>
   );
 };
 
 // Define the default walk-in customer
 const defaultCustomer: Customer = {
-  id: 0,
+  id: null,
   name: 'Walk-in Customer',
   phone: ''
 };
@@ -309,13 +310,13 @@ interface ProductShopAttributes {
 }
 
 export function Pos() {
-  const { user, business, availableShops } = useAuthLayout();
+  const { user, business, availableShops, currentShop } = useAuthLayout();
   const [selectedShopId, setSelectedShopId] = useState<string>(
     (user?.role === 'admin' || user?.role === 'shop_owner') 
       ? business?.shops?.[0]?.id || ''
       : availableShops?.[0]?.id || ''
   );
-  const [shopId, setShopId] = useState<string | null>(null);
+  // const [shopId, setShopId] = useState<string | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [paymentType, setPaymentType] = useState("CASH")
@@ -331,6 +332,7 @@ export function Pos() {
   // const [products, setProducts] = useState<Product[]>([]);
   const [products, setProducts] = useState<ProductShopAttributes[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingPayment, setIsLoadingPayment] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -346,9 +348,9 @@ export function Pos() {
   const fetchProducts = async () => {
     try {
       setIsLoading(true);
-
+      const shopId = currentShop?.id;
       const [productsResponse, categoriesResponse] = await Promise.all([
-        AxiosClient.get("/products/price-histories"),
+        AxiosClient.get(`/products/price-history/shop/${shopId}`),
         AxiosClient.get("/categories"),
       ]);
 
@@ -397,6 +399,7 @@ export function Pos() {
       setAlertMessage("This product is out of stock.");
       return;
     }
+    console.log("Adding product to cart:", product);
     
     // If product has inventories, use the first one as default or the selected warehouse
     let selectedInventory: InventoryItem | undefined = undefined;
@@ -410,36 +413,36 @@ export function Pos() {
       }
     }
     
-    // const existingItem = cartItems.find(item => item.id === product.id)
-    // if (existingItem) {
-    //   setCartItems(cartItems.map(item =>
-    //     item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-    //   ))
-    // } else {
-    //   // --- Start Corrected Logic ---
-    //   // Directly use product.inventories. Ensure it's an array.
-    //   const productInventories = Array.isArray(product.inventories) ? product.inventories : [];
+    const existingItem = cartItems.find(item => item.id === product.id)
+    if (existingItem) {
+      setCartItems(cartItems.map(item =>
+        item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+      ))
+    } else {
+      // --- Start Corrected Logic ---
+      // Directly use product.inventories. Ensure it's an array.
+      const productInventories = Array.isArray(product.inventories) ? product.inventories : [];
 
-    //   // Select the default inventory from the full list (e.g., the first one if available)
-    //   let defaultInventoryForItem: InventoryItem | undefined = undefined;
-    //   if (productInventories.length > 0) {
-    //       // Simple selection of the first item as default for now
-    //       defaultInventoryForItem = productInventories[0]; 
-    //   }
+      // Select the default inventory from the full list (e.g., the first one if available)
+      let defaultInventoryForItem: InventoryItem | undefined = undefined;
+      if (productInventories.length > 0) {
+          // Simple selection of the first item as default for now
+          defaultInventoryForItem = productInventories[0]; 
+      }
 
-    //   // Add the new item to the cart, passing the *complete* inventories list.
-    //   // Ensure we are creating a new object for the cart item.
-    //   const newItem: CartItem = {
-    //     ...product, // Spread product properties first
-    //     inventories: productInventories, // Explicitly set the full inventories list
-    //     quantity: 1,
-    //     // actualPrice: product.sellingPrice,
-    //     selectedInventory: defaultInventoryForItem // Use the determined default
-    //   };
+      // Add the new item to the cart, passing the *complete* inventories list.
+      // Ensure we are creating a new object for the cart item.
+      const newItem: CartItem = {
+        ...product,
+        quantity: 1, // Default quantity for new items
+        actualPrice: parseFloat(product.sellingPrice), // Use sellingPrice as actualPrice
+        selectedInventory: defaultInventoryForItem, // Set the selected inventory
+        inventories: productInventories // Include all inventories for this product
+      };
 
-    //   setCartItems(prevCartItems => [...prevCartItems, newItem]);
-    //   // --- End Corrected Logic ---
-    // }
+      setCartItems(prevCartItems => [...prevCartItems, newItem]);
+      // --- End Corrected Logic ---
+    }
   }
 
   const updateQuantity = (id: string, newQuantity: number) => {
@@ -469,27 +472,9 @@ export function Pos() {
 
   const handlePayment = async () => {
     try {
-      if (!user) {
-        toast({
-          title: "Error",
-          description: "User not authenticated",
-          variant: "destructive",
-        });
-        return;
-      }
+      setIsLoadingPayment(true);
 
-      const currentShopId = (user?.role === 'admin' || user?.role === 'shop_owner')
-        ? selectedShopId
-        : availableShops?.[0]?.id;
-
-      if (!currentShopId) {
-        toast({
-          title: "Error",
-          description: "Shop information not found",
-          variant: "destructive",
-        });
-        return;
-      }
+      const currentShopId = currentShop?.id || selectedShopId;
 
       const customer = selectedCustomer || {
         id: null,
@@ -501,54 +486,44 @@ export function Pos() {
 
       // Include inventory information with each cart item
       const cartItemsWithInventory = cartItems.map(item => ({
-        ...item,
-        inventoryId: item.selectedInventory?.inventory_id || null,
-        warehouseId: item.selectedInventory?.inventory_id || null
+        // ...item,
+        product_shop_id : item.id,
+        product_name : item.product.name,
+        quantity : item.quantity,
+        selling_price : item.actualPrice,
+        payment_status : "paid", // Assuming payment status is handled separately
+        // inventoryId: item.selectedInventory?.inventory_id || null,
+        // warehouseId: item.selectedInventory?.inventory_id || null
       }));
 
-      const saleData = {
-        shopId: currentShopId,
-        customer: customer,
-        cartItems: cartItemsWithInventory,
-        subtotal: total,
-        paymentMethod: paymentType,
-        amountPaid: amountPaid,
-        changeGiven: changeAmount,
-        discount: discount,
-        salesPersonId: user?.id || '',
-        salesPersonName: user?.username || '',
-        paymentStatus: amountPaid >= total ? "paid" : amountPaid > 0 ? "partially_paid" : "unpaid"
+      const orderData = {
+        shop_id : currentShopId,
+        customer_id : customer.id,
+        sales : cartItemsWithInventory,
+        net_amount : total,
+        payment_method : paymentType.toLowerCase(),
+        amount_paid : amountPaid,
+        change_given : changeAmount,
+        discount : discount,
+        orders_person_id : user?.id || '',
+        status : amountPaid >= total ? "completed" : amountPaid > 0 ? "partially_paid" : "unpaid",
+        delivery_status : "delivered", // Assuming delivery is handled separately
+        delivery_fee : 0, // Assuming no delivery fee for now
+        profit : 0, // Assuming profit calculation is handled elsewhere
       };
 
-      const response = await safeIpcInvoke<{
-        success: boolean;
-        message?: string;
-        sale?: any;
-        receipt?: {
-          saleId: string;
-          receiptId: string;
-          date: Date;
-          items: Array<{ name: string; quantity: number; sellingPrice: number; }>;
-          customerName: string;
-          customerPhone: string;
-          subtotal: number;
-          discount: number;
-          total: number;
-          amountPaid: number;
-          change: number;
-          paymentMethod: string;
-          salesPersonId: string;
-          salesPersonName: string;
-        };
-      }>('pos:sale:create', saleData);
+      console.log("Order data to be sent:", orderData);
 
-      if (response?.success && response.sale && response.receipt) {
+      const response = await AxiosClient.post("/orders", orderData);
+      const { success, data } = response.data;
+
+      if (success && data?.order) {
         setPaymentSuccess(true);
-        setLastSaleData(response.sale);
-        setLastReceiptData(response.receipt);
+        // setLastSaleData(response.sale);
+        // setLastReceiptData(response.receipt);
 
         // Try to print receipt automatically
-        await handlePrintReceipt(response);
+        // await handlePrintReceipt(response);
 
         clearCart();
         setAmountPaid(0);
@@ -559,26 +534,66 @@ export function Pos() {
         // Refresh product data to show updated inventory quantities
         fetchProducts();
 
-        toast({
-          title: "Success",
-          description: "Payment processed successfully",
-        });
-      } else {
-        setAlertMessage(response?.message || 'Payment failed');
-        toast({
-          title: "Error",
-          description: response?.message || "Payment failed",
-          variant: "destructive",
-        });
+        toast({ title: "Success", description: "Payment processed successfully"});
       }
-    } catch (error) {
-      console.error('Payment error:', error);
+
+      // const response = await safeIpcInvoke<{
+      //   success: boolean;
+      //   message?: string;
+      //   sale?: any;
+      //   receipt?: {
+      //     saleId: string;
+      //     receiptId: string;
+      //     date: Date;
+      //     items: Array<{ name: string; quantity: number; sellingPrice: number; }>;
+      //     customerName: string;
+      //     customerPhone: string;
+      //     subtotal: number;
+      //     discount: number;
+      //     total: number;
+      //     amountPaid: number;
+      //     change: number;
+      //     paymentMethod: string;
+      //     salesPersonId: string;
+      //     salesPersonName: string;
+      //   };
+      // }>('pos:sale:create', saleData);
+
+      // if (response?.success && response.sale && response.receipt) {
+      //   setPaymentSuccess(true);
+      //   setLastSaleData(response.sale);
+      //   setLastReceiptData(response.receipt);
+
+      //   // Try to print receipt automatically
+      //   await handlePrintReceipt(response);
+
+      //   clearCart();
+      //   setAmountPaid(0);
+      //   setChangeAmount(0);
+      //   setSelectedCustomer(null);
+      //   setDiscount(0);
+
+      //   // Refresh product data to show updated inventory quantities
+      //   fetchProducts();
+
+      //   toast({
+      //     title: "Success",
+      //     description: "Payment processed successfully",
+      //   });
+      // }
+    } catch (err: any) {
+      const response = err?.response;
+      console.log("Error processing payment:", response);
+      let message = "Payment failed";
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }else{
+        message = response?.data?.error || "Payment failed";
+      }      
+      toast({ title: "Error", description: message, variant: "destructive"});
       setAlertMessage('An error occurred while processing payment');
-      toast({
-        title: "Error",
-        description: "An error occurred while processing payment",
-        variant: "destructive",
-      });
+    }finally {
+      setIsLoadingPayment(false);
     }
   };
 
@@ -693,10 +708,6 @@ export function Pos() {
 
     fetchCustomers();
   }, [user?.id, user?.role, business?.id]);
-
-  useEffect(() => {
-    setShopId(localStorage.getItem('currentShopId'));
-  }, []);
 
   if (isLoading) {
     return (
@@ -834,9 +845,9 @@ export function Pos() {
               {/* Customer Selection */}
               <div className="mb-4 px-4"> {/* Added px-4 */}
                 <Select
-                  value={selectedCustomer?.id.toString()}
+                  value={selectedCustomer?.id?.toString() || ''} // Use '0' for walk-in customer
                   onValueChange={(value) => {
-                    const customer = customers.find(c => c.id.toString() === value);
+                    const customer = customers.find(c => c.id === value);
                     setSelectedCustomer(customer || defaultCustomer);
                   }}
                 >
@@ -846,7 +857,7 @@ export function Pos() {
                   <SelectContent>
                     <SelectItem value="0">Walk-in Customer</SelectItem>
                     {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id.toString()}>
+                      <SelectItem key={customer.id} value={customer.id?.toString() || ''}>
                         {customer.name} - {customer.phone}
                       </SelectItem>
                     ))}
@@ -857,17 +868,19 @@ export function Pos() {
               {/* Removed Global Warehouse Selection Dropdown */}
 
               {/* Cart Items (Removed scroll) */}
-              <div className="flex-1 min-h-0 border-y h-96"> {/* Removed overflow-y-auto */}
-                {cartItems.map(item => (
-                  <CartItem
-                    key={item.id}
-                    item={item}
-                    onUpdateQuantity={updateQuantity}
-                    onRemove={removeFromCart}
-                    onUpdatePrice={updatePrice}
-                    onUpdateItemWarehouse={handleUpdateItemWarehouse} // Pass handler down
-                  />
-                ))}
+              <div className="overflow-y-auto">
+                <div className="flex-1 min-h-0 border-y"> {/* Removed overflow-y-auto */}
+                  {cartItems.map(item => (
+                    <CartItem
+                      key={item.id}
+                      item={item}
+                      onUpdateQuantity={updateQuantity}
+                      onRemove={removeFromCart}
+                      onUpdatePrice={updatePrice}
+                      onUpdateItemWarehouse={handleUpdateItemWarehouse} // Pass handler down
+                    />
+                  ))}
+                </div>
               </div>
 
               {/* Fixed Cart Footer */}
@@ -950,9 +963,9 @@ export function Pos() {
                 <Button
                   className="w-full"
                   onClick={handlePayment}
-                  disabled={amountPaid < calculateTotal()}
+                  disabled={amountPaid < calculateTotal()  && isLoadingPayment}
                 >
-                  PAY
+                  {isLoadingPayment ? ( <ButtonSpinner/> ) : ( "PAY" )}
                 </Button>
                 {paymentSuccess && lastSaleData && lastReceiptData && (
                   <div className="space-y-2">
