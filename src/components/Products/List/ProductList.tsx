@@ -212,7 +212,6 @@ export function ProductList({ onAddProduct }: ProductListProps) {
     }
   };
 
-
   const handleDeleteClick = (productShop: ProductShopAttributes) => {
     setProductToDelete(productShop);
   };

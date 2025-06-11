@@ -5,6 +5,7 @@ import { Button } from "@/components/Shared/ui/button"
 import { Input } from "@/components/Shared/ui/input"
 import jsPDF from 'jspdf';
 // import autoTable, { RowInput } from 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { MoreHorizontal, ListFilter, PlusCircle, Store } from "lucide-react"
 import { formatCurrency } from '@/lib/utils'
 
@@ -32,8 +33,6 @@ import {
 import { Card, CardContent } from "@/components/Shared/ui/card"
 import { Search } from 'lucide-react'
 import Pagination from "@/components/Shared/ui/pagination"
-import { safeIpcInvoke } from '@/lib/ipc'
-import { SalesAttributes } from "@/models/Sales"
 import { EmptyState } from '../Empty/EmptyState'
 import { useAuthLayout } from "@/components/Shared/Layout/AuthLayout"
 import { toast } from '@/hooks/use-toast'
@@ -51,32 +50,13 @@ import {
 } from "@/components/ui/command"
 import { Checkbox } from "@/components/Shared/ui/checkbox"
 import { Label } from "@/components/Shared/ui/label"
-
-type Sale = SalesAttributes & {
-  customer?: {
-    id: string;
-    name: string;
-  } | null;
-  orders?: Array<{
-    id: string;
-    quantity: number;
-    product: {
-      name: string;
-      price: number;
-    };
-  }>;
-  paymentStatus: 'paid' | 'pending';
-};
+import AxiosClient from '@/lib/axiosClient';
+import LoadingIndicator from '@/components/Shared/ui/LoadingIndicator';
+import { Order } from '@/types/order';
 
 interface OrderListProps {
   onOrderClick: (orderId: string) => void;
   onAddOrder: () => void;
-}
-
-interface SaleResponse {
-  success: boolean;
-  sale?: SalesAttributes;
-  message?: string;
 }
 
 // Non-hook version of formatCurrency for export functionality
@@ -90,9 +70,9 @@ const formatCurrencyForExport = (amount: number): string => {
 };
 
 export function OrderList({ onOrderClick, onAddOrder }: OrderListProps) {
-  const { user, business, availableShops } = useAuthLayout();
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [filteredSales, setFilteredSales] = useState<Sale[]>([]);
+  const { user, business, availableShops,currentShop } = useAuthLayout();
+  const [orders, setOrders] = useState<Order[]>([]);
+  // const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [filterValue, setFilterValue] = useState("all");
@@ -104,185 +84,79 @@ export function OrderList({ onOrderClick, onAddOrder }: OrderListProps) {
   
   const ITEMS_PER_PAGE = 10;
 
-  // Improved shop ID handling
-  const shopIds = useMemo(() => {
-    return (user?.role === 'admin' || user?.role === 'shop_owner')
-      ? business?.shops?.map(shop => shop.id) || []
-      : [availableShops?.[0]?.id].filter(Boolean) as string[];
-  }, [user, business, availableShops]);
-
-  const fetchSales = async () => {
-    console.log('Starting fetchSales...');
-    
-    // Add business check first
-    if (!business?.id) {
-      console.error('No business configured');
-      toast({
-        title: "Error",
-        description: "Business configuration not loaded",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Improved user check
-    if (!user?.id) {
-      console.error('No user found');
-      toast({
-        title: "Error",
-        description: "User not authenticated",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Determine shop IDs based on selection and role
-    let requestShopId = null;
-    let requestShopIds = null;
-
-    if (shopId) {
-      // If specific shop is selected, use that
-      requestShopId = shopId;
-    } else if (user.role === 'admin' || user.role === 'shop_owner') {
-      // For admin/owner without specific shop selected, use all available shop IDs
-      requestShopIds = business.shops?.map(shop => shop.id);
-    } else {
-      // For regular employees, use their assigned shop
-      requestShopId = availableShops?.[0]?.id;
-    }
-
-    // Validate shop ID requirement
-    if (!requestShopId && (!requestShopIds || requestShopIds.length === 0)) {
-      console.error('No shop IDs available');
-      toast({
-        title: "Error",
-        description: "No shops available - configure shops first",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    try {
-      const params = {
-        user,
-        shopId: requestShopId,
-        shopIds: requestShopIds,
-        page: currentPage,
-        limit: itemsPerPage,
-        status: filterValue !== 'all' ? filterValue : undefined,
-        search: searchTerm.trim() || undefined,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined
-      };
-
-      console.log('Making IPC call with:', params);
-
-      const result = await safeIpcInvoke<{
-        success: boolean;
-        sales: Sale[];
-        total: number;
-        currentPage: number;
-        pages: number;
-        message?: string;
-      }>('order-management:get-sales', params);
-
-      console.log('IPC call result:', result);
-
-      if (result?.success) {
-        setSales(result.sales);
-        setFilteredSales(result.sales);
-      } else {
-        setSales([]);
-        setFilteredSales([]);
-        toast({
-          title: "Error",
-          description: result?.message || "Failed to fetch orders",
-          variant: "destructive",
-        });
+  const fetchOrders = async () => {
+    setLoading(true)
+    // let url = "/orders/shop/"+ (shopId || currentShop?.id || business?.shops?.[0]?.id) + "?page=" + currentPage + "&itemsPerPage=" + itemsPerPage;
+    let url = "/orders/shop/"+ currentShop?.id;
+    AxiosClient.get(url).then((response) => {
+      const { success, data } = response.data
+      if (success && data?.orders) {
+        setOrders(data.orders)
+        // setFilteredOrders(data.orders)
       }
-    } catch (error) {
-      console.error('Error fetching sales:', error);
-      setSales([]);
-      setFilteredSales([]);
-      toast({
-        title: "Error",
-        description: "Failed to fetch orders",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    }).catch((err: any) => {
+      let message = 'Error loading orders';
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }
+      toast({ title: "Error", description: message, variant: "destructive"});
+    }).finally(() => {
+      setLoading(false)
+    })
   };
 
   useEffect(() => {
     if (business?.id && user?.id) {
-      fetchSales();
+      fetchOrders();
     }
-  }, [business, user, shopId, currentPage, itemsPerPage, filterValue, searchTerm, startDate, endDate]);
+  }, [business, user, currentShop]);
 
-  useEffect(() => {
-    let result = [...sales];
+  const filteredOrders = orders.filter(order => {
+    const searchLower = searchTerm.toLowerCase().trim();
 
-    if (filterValue !== 'all') {
-      result = result.filter(sale => sale.deliveryStatus === filterValue);
-    }
+    // Search term matching
+    const matchesSearch = searchLower === '' ? true : (
+      order.id?.toLowerCase().includes(searchLower) ||
+      order.customer?.name?.toLowerCase().includes(searchLower) ||
+      order.deliveryStatus?.toLowerCase().includes(searchLower) ||
+      formatCurrency(order.netAmount).toLowerCase().includes(searchLower)
+    );
 
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      result = result.filter(sale => 
-        sale.id?.toLowerCase().includes(searchLower) ||
-        sale.customer?.name?.toLowerCase().includes(searchLower) ||
-        sale.deliveryStatus.toLowerCase().includes(searchLower) ||
-        formatCurrency(sale.netAmount).toLowerCase().includes(searchLower)
-      );
-    }
+    // Delivery status filter
+    const matchesFilter = filterValue === 'all' || order.deliveryStatus === filterValue;
 
-    setFilteredSales(result);
-    setCurrentPage(1);
-  }, [sales, filterValue, searchTerm]);
+    // Date range filter (assumes order.createdAt is a string in ISO or "YYYY-MM-DD HH:mm:ss" format)
+    const orderDate = new Date(order.createdAt);
+    const matchesDate =
+      (!startDate || orderDate >= new Date(startDate)) &&
+      (!endDate || orderDate <= new Date(endDate));
 
-  const totalFilteredItems = filteredSales.length;
+    return matchesSearch && matchesFilter && matchesDate;
+  });
+
+  // useEffect(() => {
+  //   setFilteredOrders(filteredOrders);
+  //   setCurrentPage(1);
+  // }, [orders, filterValue, searchTerm, startDate, endDate]);
+
+  const totalFilteredItems = filteredOrders.length;
   const totalPages = Math.ceil(totalFilteredItems / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
-  const currentPageItems = filteredSales.slice(startIndex, endIndex);
+  const currentPageItems = filteredOrders.slice(startIndex, endIndex);
 
-  const handleViewDetails = async (saleId: string) => {
-    if (!saleId) {
-      console.error('No sale ID provided');
+  const handleViewDetails = async (orderId: string) => {
+    if (!orderId) {
+      console.error('Order ID is required to view details');
       return;
     }
-
-    try {
-      const result = await safeIpcInvoke<SaleResponse>('order-management:get-sale-details', {
-        id: saleId,
-        user,
-        shopId: shopId || business?.shops?.[0]?.id,
-      });
-
-      if (result?.success && result?.sale) {
-        onOrderClick(saleId);
-      } else {
-        toast({
-          title: "Error",
-          description: result?.message || "Failed to fetch order details",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching sale details:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch order details",
-        variant: "destructive",
-      });
-    }
+    onOrderClick(orderId);
   };
 
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
     try {
-      // Check if sales data exists
-      if (!sales || sales.length === 0) {
+      // Check if orders data exists
+      if (!orders || orders.length === 0) {
         toast({
           title: "Export Failed",
           description: "No data available to export",
@@ -298,7 +172,7 @@ export function OrderList({ onOrderClick, onAddOrder }: OrderListProps) {
 
       // Common data preparation
       const headers = ['Order ID', 'Customer', 'Date', 'Status', 'Amount', 'Payment'];
-      const data = sales.map(sale => ([
+      const data = orders.map(sale => ([
         sale.id?.slice(0, 8) ?? '', // Truncated ID
         sale.customer?.name ?? 'Walking Customer',
         sale.createdAt ? new Date(sale.createdAt).toLocaleDateString() : 'N/A',
@@ -366,16 +240,16 @@ export function OrderList({ onOrderClick, onAddOrder }: OrderListProps) {
           }
           
           // Table
-          // autoTable(doc, {
-          //   head: [headers.map(h => h.toUpperCase())],
-          //   body: data,
-          //   startY: currentShop ? 40 : 25,
-          //   theme: 'grid',
-          //   styles: { fontSize: 9, cellPadding: 2 },
-          //   headStyles: { fillColor: [55, 65, 81], textColor: 255 },
-          //   alternateRowStyles: { fillColor: [249, 250, 251] },
-          //   margin: { horizontal: 14 },
-          // });
+          autoTable(doc, {
+            head: [headers.map(h => h.toUpperCase())],
+            body: data,
+            startY: currentShop ? 40 : 25,
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 2 },
+            headStyles: { fillColor: [55, 65, 81], textColor: 255 },
+            alternateRowStyles: { fillColor: [249, 250, 251] },
+            margin: { horizontal: 14 },
+          });
 
           // Footer
           const pageCount = (doc as any).getNumberOfPages();
@@ -401,7 +275,7 @@ export function OrderList({ onOrderClick, onAddOrder }: OrderListProps) {
           toast({
             title: "Export Successful",
             description: "PDF report generated with order details",
-            variant: "default",
+            variant: "primary",
           });
         } catch (pdfError) {
           console.error('PDF Generation Error:', pdfError);
@@ -436,12 +310,14 @@ export function OrderList({ onOrderClick, onAddOrder }: OrderListProps) {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <LoadingIndicator title="Loading orders..." subtitle="This may take a few moments" />
+    );
   }
 
   return (
     <div className="container mx-auto p-6">
-      {sales.length === 0 && !loading ? (
+      {orders.length === 0 && !loading ? (
         <EmptyState 
           type="order"
           onAddOrder={onAddOrder}
@@ -526,39 +402,6 @@ export function OrderList({ onOrderClick, onAddOrder }: OrderListProps) {
                 />
               </div>
             </div>
-
-            {(user?.role === 'admin' || user?.role === 'shop_owner') && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="min-w-[200px] justify-start">
-                    <Store className="mr-2 h-4 w-4" />
-                    {shopId ? business?.shops?.find(s => s.id === shopId)?.name : "All Shops"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[240px] p-0">
-                  <Command>
-                    <CommandInput placeholder="Filter shops..." />
-                    <CommandList>
-                      <CommandGroup>
-                        {business?.shops?.map((shop: any) => (
-                          <CommandItem
-                            key={shop.id}
-                            value={shop.id}
-                            onSelect={() => setShopId(shop.id === shopId ? null : shop.id)}
-                          >
-                            <Checkbox
-                              checked={shopId === shop.id}
-                              className="mr-2"
-                            />
-                            {shop.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            )}
           </div>
 
           {/* Table Container */}
@@ -578,40 +421,40 @@ export function OrderList({ onOrderClick, onAddOrder }: OrderListProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {currentPageItems.map((sale) => (
+                    {currentPageItems.map((order) => (
                       <TableRow 
-                        key={sale.id}
+                        key={order.id}
                         className="cursor-pointer hover:bg-gray-100"
                         onClick={(e) => {
                           e.preventDefault();
-                          if (sale.id) handleViewDetails(sale.id);
+                          if (order.id) handleViewDetails(order.id);
                         }}
                       >
                         <TableCell>
                           <span className="font-mono text-sm">
-                            {sale.id ? `${sale.id.slice(0, 6)}...` : 'N/A'}
+                            {order.id ? `${order.id.slice(0, 6)}...` : 'N/A'}
                           </span>
                         </TableCell>
                         <TableCell>
-                          {sale.customer?.name || 'Walking Customer'}
+                          {order.customer?.id ? order.customer?.name : 'Walking Customer'}
                         </TableCell>
                         <TableCell>
-                          {sale.createdAt ? new Date(sale.createdAt).toLocaleDateString() : 'N/A'}
+                          {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}
                         </TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold
-                            ${sale.deliveryStatus === 'delivered' ? 'bg-green-100 text-green-800' :
-                              sale.deliveryStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            ${order.deliveryStatus === 'delivered' ? 'bg-green-100 text-green-800' :
+                              order.deliveryStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                               'bg-red-100 text-red-800'}`}>
-                            {sale.deliveryStatus}
+                            {order.deliveryStatus}
                           </span>
                         </TableCell>
-                        <TableCell>{formatCurrency(sale.netAmount)}</TableCell>
+                        <TableCell>{formatCurrency(order.netAmount)}</TableCell>
                         <TableCell>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold
-                            ${sale.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 
+                            ${order.paymentStatus === 'completed' ? 'bg-green-100 text-green-800' : 
                               'bg-yellow-100 text-yellow-800'}`}>
-                            {sale.paymentStatus}
+                            {order.paymentStatus === 'completed' ? 'paid' : order.paymentStatus}
                           </span>
                         </TableCell>
                         <TableCell>
@@ -620,7 +463,7 @@ export function OrderList({ onOrderClick, onAddOrder }: OrderListProps) {
                             className="h-8 w-8 p-0"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (sale.id) handleViewDetails(sale.id);
+                              if (order.id) handleViewDetails(order.id);
                             }}
                           >
                             <span className="sr-only">Open menu</span>
@@ -639,7 +482,7 @@ export function OrderList({ onOrderClick, onAddOrder }: OrderListProps) {
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <span className="text-sm text-muted-foreground">
-                Showing {startIndex + 1}-{Math.min(endIndex, filteredSales.length)} of {filteredSales.length} orders
+                Showing {startIndex + 1}-{Math.min(endIndex, filteredOrders.length)} of {filteredOrders.length} orders
               </span>
               <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
                 <SelectTrigger className="w-[100px]">

@@ -26,6 +26,9 @@ import { toast } from '@/hooks/use-toast'
 import { PrinterService, PrinterBusinessInfo, PrinterReceiptData } from "@/services/printerService"
 import { useAuthLayout } from "@/components/Shared/Layout/AuthLayout"
 import { SalesAttributes } from "@/models/Sales"
+import { Order } from "@/types/order"
+import AxiosClient from "@/lib/axiosClient"
+import LoadingIndicator from "@/components/Shared/ui/LoadingIndicator"
 
 interface IpcResponse {
   success: boolean;
@@ -69,7 +72,7 @@ interface OrderDetailsProps {
 
 const OrderDetails = ({ orderId, onBack }: OrderDetailsProps) => {
   const { user, business, availableShops } = useAuthLayout();
-  const [order, setOrder] = useState<SalesAttributes | null>(null);
+  const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [hasPrinter, setHasPrinter] = useState(false);
@@ -78,71 +81,100 @@ const OrderDetails = ({ orderId, onBack }: OrderDetailsProps) => {
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
 
   useEffect(() => {
-    const fetchOrderDetails = async () => {
-      try {
-        console.log('Fetching order details for ID:', orderId);
-        const result = await safeIpcInvoke<IpcResponse>('order-management:get-sale-details', { id: orderId });
+    // const fetchOrderDetails = async () => {
+    //   try {
+    //     console.log('Fetching order details for ID:', orderId);
+    //     const result = await safeIpcInvoke<IpcResponse>('order-management:get-sale-details', { id: orderId });
         
-        console.log('Order details result:', result);
+    //     console.log('Order details result:', result);
         
-        if (!result?.success || !result?.sale) {
-          throw new Error(result?.message || "Failed to fetch order details");
-        }
+    //     if (!result?.success || !result?.sale) {
+    //       throw new Error(result?.message || "Failed to fetch order details");
+    //     }
 
-        setOrder(result.sale);
-      } catch (error) {
-        console.error('Error fetching order details:', error);
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to fetch order details",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+    //     setOrder(result.sale);
+    //   } catch (error) {
+    //     console.error('Error fetching order details:', error);
+    //     toast({
+    //       title: "Error",
+    //       description: error instanceof Error ? error.message : "Failed to fetch order details",
+    //       variant: "destructive",
+    //     });
+    //   } finally {
+    //     setLoading(false);
+    //   }
+    // };
     
+    // fetchOrderDetails();
+
+    const fetchOrderDetails = async () => {
+      setLoading(true)
+      let url = "/orders/" + orderId;
+      AxiosClient.get(url).then((response) => {
+        const { success, data } = response.data
+        if (success && data?.order) {
+          setOrder(data.order)
+        }
+      }).catch((err: any) => {
+        let message = 'Error loading categories';
+        if(err && err.message === 'Network Error') {
+          message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+        }
+      }).finally(() => {
+        setLoading(false)
+      })
+    }
+
     fetchOrderDetails();
   }, [orderId]);
 
   const handleUpdateStatus = async (type: 'delivery' | 'payment', status: string) => {
-    try {
-      setIsUpdating(true);
-      const result = await safeIpcInvoke<IpcResponse>('order-management:update-sale-status', {
-        saleId: order?.id,
-        type,
-        status
-      });
+    // try {
+    //   setIsUpdating(true);
+    //   const result = await safeIpcInvoke<IpcResponse>('order-management:update-sale-status', {
+    //     saleId: order?.id,
+    //     type,
+    //     status
+    //   });
 
-      if (!result?.success) {
-        throw new Error(result?.message || `Failed to update ${type} status`);
-      }
+    //   if (!result?.success) {
+    //     throw new Error(result?.message || `Failed to update ${type} status`);
+    //   }
 
-      if (result.sale) {
-        setOrder(result.sale);
-      }
+    //   if (result.sale) {
+    //     setOrder(result.sale);
+    //   }
 
-      if (result.data?.receiptData) {
-        setReceiptData(result.data.receiptData as unknown as ReceiptData);
-      }
+    //   if (result.data?.receiptData) {
+    //     setReceiptData(result.data.receiptData as unknown as ReceiptData);
+    //   }
 
-      toast({
-        title: "Success",
-        description: "Status updated successfully",
-      });
-    } catch (error) {
-      console.error(`Error updating ${type} status:`, error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : `Failed to update ${type} status`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsUpdating(false);
-    }
+    //   toast({
+    //     title: "Success",
+    //     description: "Status updated successfully",
+    //   });
+    // } catch (error) {
+    //   console.error(`Error updating ${type} status:`, error);
+    //   toast({
+    //     title: "Error",
+    //     description: error instanceof Error ? error.message : `Failed to update ${type} status`,
+    //     variant: "destructive",
+    //   });
+    // } finally {
+    //   setIsUpdating(false);
+    // }
   };
 
   const handlePrint = async () => {
+    if (!hasPrinter) {
+      toast({
+        title: "Warning",
+        description: "en Developer mode, printing is not available",
+        variant: "primary",
+      });
+      return;
+    }
+    
     if (!order || !business) {
       toast({
         title: "Error",
@@ -221,7 +253,7 @@ const OrderDetails = ({ orderId, onBack }: OrderDetailsProps) => {
   }
 
   if (loading || !order) {
-    return <div>Loading...</div>;
+    return <LoadingIndicator title="Loading order selected..." subtitle="This may take a few moments" />;
   }
 
   return (
@@ -254,7 +286,7 @@ const OrderDetails = ({ orderId, onBack }: OrderDetailsProps) => {
               <div>
                 <dt className="text-sm font-medium text-gray-500">Customer</dt>
                 <dd className="mt-1 text-sm text-gray-900">
-                  {order.customer?.first_name || 'Walk-in Customer'}
+                  {order.customer?.id ? order.customer?.name : 'Walking Customer'}
                 </dd>
               </div>
               <div>
@@ -303,11 +335,11 @@ const OrderDetails = ({ orderId, onBack }: OrderDetailsProps) => {
               <div>
                 <label className="text-sm font-medium text-gray-500">Payment Status</label>
                 <div className="mt-1 flex items-center space-x-4">
-                  <Badge variant="outline" className={getStatusColor(order.status)}>
-                    {order.status}
+                  <Badge variant="outline" className={getStatusColor(order.paymentStatus)}>
+                    {order.paymentStatus}
                   </Badge>
                   <Select
-                    value={order.status}
+                    value={order.paymentStatus}
                     onValueChange={(value) => handleUpdateStatus('payment', value)}
                     disabled={isUpdating}
                   >
@@ -342,7 +374,7 @@ const OrderDetails = ({ orderId, onBack }: OrderDetailsProps) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {order.orders?.map((item: any) => (
+              {order.sales?.map((item: any) => (
                 <TableRow key={item.id}>
                   <TableCell>{item.productName}</TableCell>
                   <TableCell className="text-right">{item.quantity}</TableCell>

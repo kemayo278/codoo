@@ -512,8 +512,6 @@ export function Pos() {
         profit : 0, // Assuming profit calculation is handled elsewhere
       };
 
-      console.log("Order data to be sent:", orderData);
-
       const response = await AxiosClient.post("/orders", orderData);
       const { success, data } = response.data;
 

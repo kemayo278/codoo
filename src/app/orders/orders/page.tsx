@@ -5,17 +5,18 @@ import { OrderList } from "@/components/Orders/List/OrderList"
 import { AddOrder } from "@/components/Orders/Form/AddOrder"
 import OrderDetails from "@/components/Orders/Details/OrderDetails"
 import { DashboardLayout } from "@/components/Shared/Layout/DashboardLayout" 
-import { SalesAttributes } from "@/models/Sales"
+// import { SalesAttributes } from "@/models/Sales"
+import { Order } from "@/types/order"
 
 // Add proper interface for OrderList props
 interface OrderListProps {
-  onOrderClick: (order: SalesAttributes) => void;
+  onOrderClick: (order: Order) => void;
   onAddOrder: () => void;
 }
 
 export default function OrdersPage() {
   const [view, setView] = useState<"list" | "add" | "details">("list")
-  const [selectedOrder, setSelectedOrder] = useState<SalesAttributes | null>(null)
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
 
   const handleOrderClick = (orderId: string) => {
     if (!orderId) return;
@@ -23,7 +24,7 @@ export default function OrdersPage() {
     setSelectedOrder({ 
       id: orderId,
       // Add other required fields from SalesAttributes if needed
-    } as SalesAttributes);
+    } as Order);
     setView("details");
   }
 
