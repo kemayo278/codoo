@@ -952,8 +952,8 @@ export function Pos() {
 
                 <Button
                   className="w-full"
-                  onClick={handlePayment}
-                  disabled={amountPaid < calculateTotal()  && isLoadingPayment}
+                  onClick={amountPaid < calculateTotal() || isLoadingPayment ? () => {} : handlePayment }
+                  disabled={amountPaid < calculateTotal() || isLoadingPayment}
                 >
                   {isLoadingPayment ? ( <ButtonSpinner/> ) : ( "PAY" )}
                 </Button>
