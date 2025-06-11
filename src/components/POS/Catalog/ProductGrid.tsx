@@ -16,6 +16,7 @@ import EmptyState from './Empty/EmptyState'
 import { PrinterService } from "@/services/printerService";
 import AxiosClient from "@/lib/axiosClient"
 import { ButtonSpinner } from "@/components/Shared/ui/ButtonSpinner"
+import LoadingIndicator from "@/components/Shared/ui/LoadingIndicator"
 
 // Define the Product interface
 interface Product {
@@ -311,11 +312,6 @@ interface ProductShopAttributes {
 
 export function Pos() {
   const { user, business, availableShops, currentShop } = useAuthLayout();
-  const [selectedShopId, setSelectedShopId] = useState<string>(
-    (user?.role === 'admin' || user?.role === 'shop_owner') 
-      ? business?.shops?.[0]?.id || ''
-      : availableShops?.[0]?.id || ''
-  );
   // const [shopId, setShopId] = useState<string | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -329,7 +325,6 @@ export function Pos() {
   const [amountPaid, setAmountPaid] = useState<number>(0);
   const [changeAmount, setChangeAmount] = useState<number>(0);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
-  // const [products, setProducts] = useState<Product[]>([]);
   const [products, setProducts] = useState<ProductShopAttributes[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingPayment, setIsLoadingPayment] = useState(false);
@@ -351,7 +346,7 @@ export function Pos() {
       const shopId = currentShop?.id;
       const [productsResponse, categoriesResponse] = await Promise.all([
         AxiosClient.get(`/products/price-history/shop/${shopId}`),
-        AxiosClient.get("/categories"),
+        AxiosClient.get(`/categories/shop/${shopId}`),
       ]);
 
       const { success: productsSuccess, data: productsData, } = productsResponse.data;
@@ -474,7 +469,7 @@ export function Pos() {
     try {
       setIsLoadingPayment(true);
 
-      const currentShopId = currentShop?.id || selectedShopId;
+      const currentShopId = currentShop?.id;
 
       const customer = selectedCustomer || {
         id: null,
@@ -608,9 +603,7 @@ export function Pos() {
     try {
       const printerService = new PrinterService();
       
-      const currentShop = (user?.role === 'admin' || user?.role === 'shop_owner')
-        ? business?.shops?.find(shop => shop.id === selectedShopId)
-        : availableShops?.[0];
+      // const currentShop = currentShop || availableShops.find(shop => shop.id === saleResponse.shopId);
 
       if (!currentShop) {
         throw new Error('Shop information not found');
@@ -687,16 +680,17 @@ export function Pos() {
     if (business?.id && !authChecked) {
       fetchProducts();
     }
-  }, [business?.id, authChecked, selectedShopId]);
+  }, [business?.id, authChecked]);
 
   useEffect(() => {
     const fetchCustomers = async () => {
-      AxiosClient.get("/customers").then((response) => {
+      let url = "customers/shop/"+ currentShop?.id
+      AxiosClient.get(url).then((response) => {
         const { success, data } = response.data
         if (success && data?.customers) {
           setCustomers(data.customers)
         }
-      }).catch((err) => {
+      }).catch((err: any) => {
         console.error("error loading customers :", err)
         setError("error loading customers")
       }).finally(() => {
@@ -709,9 +703,7 @@ export function Pos() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
+      <LoadingIndicator title="Loading..." subtitle="This may take a few moments" />
     );
   }
 
