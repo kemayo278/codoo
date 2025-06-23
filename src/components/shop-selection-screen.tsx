@@ -71,6 +71,7 @@ export function ShopSelectionScreen() {
   const handleAddShop = () => {
     // In a real app, this would navigate to a shop creation page or open a modal
     console.log("Add new shop")
+    router.push("/shops")
   }
 
   useEffect(() => {
@@ -128,8 +129,7 @@ export function ShopSelectionScreen() {
             </CardContent>
           </Card>
 
-          {/* Shop Cards */}
-          {filteredShops.map((shop) => (
+          {filteredShops .filter((shop) => shop.status === "active").map((shop) => (
             <Card
               key={shop.id}
               className={`cursor-pointer transition-colors ${

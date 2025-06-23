@@ -57,7 +57,7 @@ interface ShopFormProps {
     locationData: {
       address: string;
       city: string;
-      country: {name:any};
+      country: {name : any}; 
       region?: string;
     };
   }) => Promise<void>;
@@ -132,14 +132,20 @@ export function ShopForm({ shop, onSave, onCancel }: ShopFormProps) {
   // Country select options
   const countryOptions = useMemo(() => countryList().getData(), []);
 
-  // Region/State select options
-  const regionOptions = useMemo(() => {
-    if (!formData.location.country) return [];
-    return State.getStatesOfCountry(formData.location.country).map(state => ({
-      value: state.isoCode,
-      label: state.name
-    }));
-  }, [formData.location.country]);
+const regionOptions = useMemo(() => {
+  if (!formData.location.country) return [];
+
+  const selectedCountry = countryOptions.find(
+    option => option.label === formData.location.country
+  );
+
+  if (!selectedCountry) return [];
+
+  return State.getStatesOfCountry(selectedCountry.value).map(state => ({
+    value: state.isoCode,
+    label: state.name
+  }));
+}, [formData.location.country]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,11 +186,7 @@ export function ShopForm({ shop, onSave, onCancel }: ShopFormProps) {
       onCancel();
     } catch (error) {
       console.error('Error saving shop:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save shop",
-        variant: "destructive",
-      });
+      toast({title: "Error", description: "Failed to save shop", variant: "destructive"});
     }finally {
       setIsLoading(false);
     }
@@ -227,6 +229,7 @@ export function ShopForm({ shop, onSave, onCancel }: ShopFormProps) {
         />
         <Input
           name="email"
+          type="email"
           placeholder="Email Address"
           value={formData.contactInfo.email}
           onChange={(e) => setFormData(prev => ({ ...prev, contactInfo: { ...prev.contactInfo, email: e.target.value } }))}
@@ -260,41 +263,46 @@ export function ShopForm({ shop, onSave, onCancel }: ShopFormProps) {
             }))}
             required
           />
-          <div>
-            <Label htmlFor="country">Country</Label>
+        <div>
+          <Label htmlFor="country">Country</Label>
+          <ReactSelect
+            id="country"
+            options={countryOptions}
+            value={countryOptions.find(option => option.label === formData.location.country)}
+            onChange={(option) => setFormData(prev => ({
+              ...prev,
+              location: {
+                ...prev.location,
+                country: option?.label || '',
+                region: '' // reset region when country changes
+              }
+            }))}
+            className="mt-1"
+          />
+        </div>
+
+        {formData.location.country && (
+          <div className="col-span-2">
+            <Label htmlFor="region">State/Region</Label>
             <ReactSelect
-              id="country"
-              options={countryOptions}
-              value={countryOptions.find(option => option.value === formData.location.country)}
+              id="region"
+              options={regionOptions}
+              value={regionOptions.find(option => option.label === formData.location.region)}
               onChange={(option) => setFormData(prev => ({
                 ...prev,
-                location: { 
-                  ...prev.location, 
-                  country: option?.value || '',
-                  region: '' // Reset region when country changes
+                location: {
+                  ...prev.location,
+                  region: option?.label || ''
                 }
               }))}
               className="mt-1"
+              isClearable
+              placeholder="Select or type state/region"
+              noOptionsMessage={() => "Type to enter custom region"}
             />
           </div>
-          {formData.location.country && (
-            <div className="col-span-2">
-              <Label htmlFor="region">State/Region</Label>
-              <ReactSelect
-                id="region"
-                options={regionOptions}
-                value={regionOptions.find(option => option.value === formData.location.region)}
-                onChange={(option) => setFormData(prev => ({
-                  ...prev,
-                  location: { ...prev.location, region: option?.value || '' }
-                }))}
-                className="mt-1"
-                isClearable
-                placeholder="Select or type state/region"
-                noOptionsMessage={() => "Type to enter custom region"}
-              />
-            </div>
-          )}
+        )}
+
         </div>
       </div>
 

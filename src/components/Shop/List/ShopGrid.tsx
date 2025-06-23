@@ -278,7 +278,7 @@ export function Shops() {
       });
   
       if (response.data?.success) {
-        console.log(`Shop status updated to ${newStatus}`);
+        toast({ title: "Success", description: `Shop status updated to ${newStatus}`, variant: "primary" });
         fetchShops();
       } else {
         toast({ title: "Error", description: "Failed to update shop status", variant: "destructive"});
