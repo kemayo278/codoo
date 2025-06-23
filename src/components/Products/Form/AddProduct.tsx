@@ -309,10 +309,11 @@ export function AddProduct({ onBack, editMode = false, productToEdit, onEditComp
       };
       reader.readAsDataURL(file);
     }
+    return
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault(); 
   };
 
   const handleDropFeaturedImage = (e: React.DragEvent) => {
@@ -417,7 +418,11 @@ export function AddProduct({ onBack, editMode = false, productToEdit, onEditComp
                         <Button
                           variant="outline"
                           className="w-full text-[#1A7DC4] border-[#1A7DC4] hover:bg-[#1A7DC4] hover:text-white"
-                          onClick={() => handleButtonClick('featuredImage')}
+                          // onClick={() => handleButtonClick('featuredImage')}
+                          onClick={(e) => {
+                            e.preventDefault(); 
+                            handleButtonClick('featuredImage');
+                          }}
                         >
                           Add File
                         </Button>
@@ -448,7 +453,11 @@ export function AddProduct({ onBack, editMode = false, productToEdit, onEditComp
                         <Button
                           variant="outline"
                           className="w-full text-[#1A7DC4] border-[#1A7DC4] hover:bg-[#1A7DC4] hover:text-white"
-                          onClick={() => handleButtonClick('additionalImages')}
+                          // onClick={() => handleButtonClick('additionalImages')}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleButtonClick('additionalImages');
+                          }}
                         >
                           Add Files
                         </Button>

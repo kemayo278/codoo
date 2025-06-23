@@ -282,11 +282,16 @@ export function Shops() {
         fetchShops();
       } else {
         toast({ title: "Error", description: "Failed to update shop status", variant: "destructive"});
-        throw new Error(response.data?.message ?? 'Failed to update shop status');
       }
-    } catch (error) {
-      console.error('Error toggling shop status:', error);
-      toast({ title: "Error", description: "Failed to update shop status", variant: "destructive"});
+    } catch (err: any) {
+      const response = err?.response;
+      let message = "";
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }else{
+        message = response?.data?.error || "Failed to update shop status";
+      }      
+      toast({ title: "Error", description: message, variant: "destructive"});  
     }
   };  
 
