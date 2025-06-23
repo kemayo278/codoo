@@ -14,6 +14,7 @@ import { State } from 'country-state-city';
 import { Label } from "@/components/Shared/ui/label";
 import { useQuery } from '@tanstack/react-query';
 import { safeIpcInvoke } from '@/lib/ipc';
+import { ButtonSpinner } from "@/components/Shared/ui/ButtonSpinner";
 
 interface ShopFormData {
   name: string;
@@ -56,7 +57,7 @@ interface ShopFormProps {
     locationData: {
       address: string;
       city: string;
-      country: string;
+      country: {name:any};
       region?: string;
     };
   }) => Promise<void>;
@@ -100,6 +101,7 @@ interface EmployeesResponse {
 
 export function ShopForm({ shop, onSave, onCancel }: ShopFormProps) {
   const { business } = useAuthLayout();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<ShopFormData>({
     name: shop?.name || "",
     type: shop?.type || "",
@@ -168,11 +170,12 @@ export function ShopForm({ shop, onSave, onCancel }: ShopFormProps) {
     const locationData = {
       address: formData.location.address,
       city: formData.location.city,
-      country: formData.location.country,
+      country: {name : formData.location.country},
       region: formData.location.region
     };
 
     try {
+      setIsLoading(true);
       await onSave({ shopData, locationData });
       onCancel();
     } catch (error) {
@@ -182,6 +185,8 @@ export function ShopForm({ shop, onSave, onCancel }: ShopFormProps) {
         description: "Failed to save shop",
         variant: "destructive",
       });
+    }finally {
+      setIsLoading(false);
     }
   };
 
@@ -337,7 +342,9 @@ export function ShopForm({ shop, onSave, onCancel }: ShopFormProps) {
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit">Save</Button>
+        <Button type="submit">
+          {isLoading ? <ButtonSpinner/> : "Save"}
+        </Button>
       </div>
     </form>
   );

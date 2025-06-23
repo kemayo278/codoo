@@ -349,7 +349,7 @@ export function AddProduct({ onBack, editMode = false, productToEdit, onEditComp
         <ChevronLeft className="mr-2 h-5 w-5" /> Back
       </Button>
       
-      <form onSubmit={handleSubmit}>
+      <form>
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-xl font-semibold flex items-center text-gray-800">
             {editMode ? 'Edit Product' : 'Add Product'}
@@ -359,7 +359,8 @@ export function AddProduct({ onBack, editMode = false, productToEdit, onEditComp
               Cancel
             </Button>
             <Button 
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               className="bg-[#1A7DC4] hover:bg-[#1565a0]" 
               disabled={loading}
             >

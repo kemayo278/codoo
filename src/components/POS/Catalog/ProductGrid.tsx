@@ -360,9 +360,12 @@ export function Pos() {
       if (categoriesSuccess && categoriesData?.categories) {
         setCategories(categoriesData.categories);
       }
-    } catch (err) {
-      console.error("Unexpected error while loading products or categories:", err);
-      setError("Unexpected error occurred while loading data.");
+    } catch (err : any) {
+      let message = 'Error loading products or categories';
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -952,8 +955,8 @@ export function Pos() {
 
                 <Button
                   className="w-full"
-                  onClick={amountPaid < calculateTotal() || isLoadingPayment ? () => {} : handlePayment }
-                  disabled={amountPaid < calculateTotal() || isLoadingPayment}
+                  onClick={amountPaid < calculateTotal() || isLoadingPayment || cartItems.length === 0 ? () => {} : handlePayment }
+                  disabled={amountPaid < calculateTotal() || isLoadingPayment || cartItems.length === 0}
                 >
                   {isLoadingPayment ? ( <ButtonSpinner/> ) : ( "PAY" )}
                 </Button>

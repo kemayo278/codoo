@@ -97,7 +97,7 @@ export function Shops() {
   const [isAddingShop, setIsAddingShop] = useState<boolean>(false);
   const [editingShop, setEditingShop] = useState<Shop | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { business, user, availableShops, checkAuth } = useAuthLayout();
+  const { business, user, availableShops, checkAuth, currentShop } = useAuthLayout();
 
   // Get shops from availableShops or business.shops
   const shops = availableShops || business?.shops || [];
@@ -130,9 +130,9 @@ export function Shops() {
     locationData: {
       address: string;
       city: string;
-      country: string;
+      country: {name : any};
       region?: string;
-    }
+    };
   }) => {
     if (!business?.id) {
       toast({
@@ -142,34 +142,52 @@ export function Shops() {
       });
       return;
     }
-
     try {
-      const response = await safeIpcInvoke('entities:shop:create', {
-        shopData: {
-          ...data.shopData,
-          businessId: business.id,
-          status: 'active'
-        },
-        locationData: data.locationData
-      }, { success: false, message: '' });
+      console.log("Data :", data);      
+      const locationResponse = await AxiosClient.post('/locations', {
+        address: data.locationData.address,
+        city: data.locationData.city,
+        country: data.locationData.country,
+        region: data.locationData.region,
+        // country: { name: data.locationData.country.name }
+      });
 
-      if (response?.success) {
-        toast({
-          title: "Success",
-          description: "Shop created successfully",
-        });
+      const { success: locationSuccess, data: locationData } = locationResponse.data;
+
+      console.log("Location Data :", locationData);
+
+      const shopResponse = await AxiosClient.post('/shops', {
+        name: data.shopData.name,
+        type: data.shopData.type,
+        shop_type: data.shopData.type,
+        business_id: business.id,
+        location_id: locationData.id,
+        contact_info: {
+          phone: data.shopData.contactInfo.phone,
+          email: data.shopData.contactInfo.email,
+        },
+        operating_hours: data.shopData.operatingHours,
+        manager: data.shopData.manager,
+        manager_id: data.shopData.managerId,
+        status: data.shopData.status ?? 'active',
+      });
+
+      const { success: shopSuccess, data: shopData, message: shopMessage } = shopResponse.data;
+
+      if (locationSuccess && shopSuccess) {
+        toast({ title: "Success", description: "Shop created successfully"});
         setIsAddingShop(false);
         fetchShops();
-      } else {
-        throw new Error(response?.message ?? 'Failed to create shop');
       }
-    } catch (error) {
-      console.error('Error creating shop:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create shop",
-        variant: "destructive",
-      });
+    } catch (err: any) {
+      const response = err?.response;
+      let message = "Error processing your request";
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }else{
+        message = response?.data?.error || "Error processing your request";
+      }      
+      toast({ title: "Error", description: message, variant: "destructive"});
     }
   };
 
@@ -190,7 +208,7 @@ export function Shops() {
     locationData: {
       address: string;
       city: string;
-      country: string;
+      country: {name: any};
       region?: string;
     };
   }) => {
@@ -198,13 +216,6 @@ export function Shops() {
       toast({ title: "Error", description: "Shop ID not found", variant: "destructive" });
       return;
     }
-
-    console.log('Updating shop:', {
-      ...data,
-      // shop: editingShop,
-      locationId: editingShop.locationId,
-    });
-  
     try {
       const updateShopResponse = await AxiosClient.put(`/shops/${editingShop.id}`, {
         name: data.shopData.name,
@@ -233,21 +244,16 @@ export function Shops() {
         toast({ title: "Success", description: "Shop and location updated successfully", });
         setEditingShop(null);
         fetchShops();
-      } else {
-        toast({
-          title: "Error",
-          description: shopMessage || locationMessage || "Failed to update shop or location",
-          variant: "destructive",
-        });
       }
-      
-    } catch (error) {
-      console.error('Error updating shop:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update shop",
-        variant: "destructive",
-      });
+    } catch (err: any) {
+      const response = err?.response;
+      let message = "Error processing your request";
+      if(err && err.message === 'Network Error') {
+        message = process.env.NEXT_PUBLIC_ERROR_CONNECTION as string;
+      }else{
+        message = response?.data?.error || "Error processing your request";
+      }      
+      toast({ title: "Error", description: message, variant: "destructive"});
     }
   };  
 
